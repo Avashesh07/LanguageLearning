@@ -1,5 +1,5 @@
 import './App.css';
-import { useGameState } from './hooks/useGameState';
+import { useGameState, formatTime } from './hooks/useGameState';
 import { Menu } from './components/Menu';
 import { GameScreen } from './components/GameScreen';
 import { ResultsScreen } from './components/ResultsScreen';
@@ -7,6 +7,8 @@ import { ResultsScreen } from './components/ResultsScreen';
 function App() {
   const {
     state,
+    selectedLevels,
+    setSelectedLevels,
     startSession,
     submitAnswer,
     nextVerb,
@@ -14,31 +16,42 @@ function App() {
     returnToMenu,
     exportTimes,
     resetProgress,
-    formatTime,
-    verbCount,
+    getVerbCountForLevels,
+    isActiveRecallUnlocked,
+    isConjugationUnlocked,
+    isImperfectUnlocked,
   } = useGameState();
 
   const isSessionComplete = state.session?.isComplete;
+  const isGradationComplete = state.gradationSession?.isComplete;
+  const isComplete = isSessionComplete || isGradationComplete;
 
   return (
     <div className="app">
       {state.mode === 'menu' ? (
         <Menu
           player={state.player}
+          selectedLevels={selectedLevels}
+          onSelectLevels={setSelectedLevels}
           onStartSession={startSession}
           onExportTimes={exportTimes}
           onResetProgress={resetProgress}
           formatTime={formatTime}
-          verbCount={verbCount}
+          getVerbCountForLevels={getVerbCountForLevels}
+          isActiveRecallUnlocked={isActiveRecallUnlocked}
+          isConjugationUnlocked={isConjugationUnlocked}
+          isImperfectUnlocked={isImperfectUnlocked}
         />
-      ) : isSessionComplete ? (
+      ) : isComplete ? (
         <ResultsScreen
           session={state.session!}
           player={state.player}
           mode={state.mode}
+          levels={selectedLevels}
           onReturnToMenu={returnToMenu}
-          onPlayAgain={() => startSession(state.mode)}
+          onPlayAgain={() => startSession(state.mode, selectedLevels)}
           formatTime={formatTime}
+          gradationSession={state.gradationSession}
         />
       ) : (
         <GameScreen
