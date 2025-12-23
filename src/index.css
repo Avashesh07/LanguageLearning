@@ -1,0 +1,177 @@
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+:root {
+  --bg-primary: #0d0d0d;
+  --bg-secondary: #1a1a1a;
+  --text-primary: #e6e6e6;
+  --text-secondary: #888888;
+  --accent-green: #4caf50;
+  --accent-green-dim: #2d6b2f;
+  --error-red: #c94a4a;
+  --error-red-dim: #7a2d2d;
+  --highlight-amber: #f0c674;
+  --highlight-amber-dim: #8f7542;
+  --border-color: #3a3a3a;
+  --mastery-gray: #666666;
+  --mastery-yellow: #f0c674;
+  --mastery-green: #4caf50;
+  --mastery-gold: #ffd700;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  font-family: 'VT323', monospace;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  line-height: 1.4;
+  image-rendering: pixelated;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  width: 100%;
+  max-width: 640px;
+}
+
+/* Pixel border utility */
+.pixel-border {
+  border: 4px solid var(--border-color);
+  position: relative;
+}
+
+.pixel-border::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border: 2px solid var(--bg-secondary);
+  pointer-events: none;
+}
+
+/* Inputs */
+input[type="text"] {
+  font-family: 'VT323', monospace;
+  font-size: 1.5rem;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 3px solid var(--border-color);
+  padding: 0.75rem 1rem;
+  width: 100%;
+  outline: none;
+  caret-color: var(--accent-green);
+}
+
+input[type="text"]:focus {
+  border-color: var(--accent-green);
+}
+
+input[type="text"]::placeholder {
+  color: var(--text-secondary);
+}
+
+/* Buttons */
+button {
+  font-family: 'VT323', monospace;
+  font-size: 1.25rem;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 3px solid var(--border-color);
+  padding: 0.75rem 1.5rem;
+  cursor: pointer;
+  transition: none;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+button:hover:not(:disabled) {
+  background-color: var(--border-color);
+  border-color: var(--text-secondary);
+}
+
+button:active:not(:disabled) {
+  transform: translate(2px, 2px);
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+button.primary {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+}
+
+button.primary:hover:not(:disabled) {
+  background-color: var(--accent-green-dim);
+}
+
+/* Animations */
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+@keyframes flash-red {
+  0%, 100% { background-color: var(--bg-primary); }
+  50% { background-color: var(--error-red-dim); }
+}
+
+@keyframes flash-green {
+  0%, 100% { background-color: var(--bg-primary); }
+  50% { background-color: var(--accent-green-dim); }
+}
+
+.flash-error {
+  animation: flash-red 0.2s ease-out;
+}
+
+.flash-success {
+  animation: flash-green 0.2s ease-out;
+}
+
+/* Cursor blink */
+.cursor-blink::after {
+  content: '_';
+  animation: blink 1s infinite;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Selection */
+::selection {
+  background-color: var(--accent-green);
+  color: var(--bg-primary);
+}
