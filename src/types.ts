@@ -83,6 +83,7 @@ export interface GameState {
   // Consonant gradation specific
   currentGradationQuestion?: ConsonantGradationQuestion;
   gradationSession?: ConsonantGradationSessionState;
+  questions: ConsonantGradationQuestion[];
 }
 
 export interface FeedbackData {

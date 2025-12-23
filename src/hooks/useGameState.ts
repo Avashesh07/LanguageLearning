@@ -1,4 +1,4 @@
-import { useReducer, useEffect, useCallback, useState } from 'react';
+import { useReducer, useEffect, useCallback, useState, useRef } from 'react';
 import type {
   GameState,
   PlayerState,
@@ -15,6 +15,7 @@ import type {
 } from '../types';
 import { getVerbsForLevels, verbsByLevel, verbTypeInfo, negativeInfo, getRandomSentence, getRandomImperfectSentence } from '../data/verbs';
 import { getAllRules, createPracticeQuestions, type GradationRule } from '../data/consonantGradation';
+import { saveToCSV, loadFromCSV } from '../utils/csvDatabase';
 
 const STORAGE_KEY = 'finnish-verb-arena-v4';
 
@@ -127,6 +128,7 @@ function getInitialState(): GameState {
     currentSentence: undefined,
     currentGradationQuestion: undefined,
     gradationSession: undefined,
+    questions: [],
   };
 }
 
@@ -739,9 +741,44 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 export function useGameState() {
   const [state, dispatch] = useReducer(gameReducer, undefined, getInitialState);
   const [selectedLevels, setSelectedLevels] = useState<VerbLevel[]>(['A1']);
+  const [isLoading, setIsLoading] = useState(true);
+  const isInitialLoad = useRef(true);
 
+  // Load state from CSV on initial mount
   useEffect(() => {
+    async function loadState() {
+      try {
+        const saved = await loadFromCSV();
+        if (saved) {
+          // Ensure all fields exist
+          saved.levelProgress = saved.levelProgress.map((lp) => ({
+            ...lp,
+            conjugationCompleted: lp.conjugationCompleted ?? false,
+            imperfectCompleted: lp.imperfectCompleted ?? false,
+          }));
+          dispatch({ type: 'LOAD_STATE', state: saved });
+        }
+      } catch (error) {
+        console.warn('Failed to load from CSV:', error);
+      } finally {
+        setIsLoading(false);
+        isInitialLoad.current = false;
+      }
+    }
+    loadState();
+  }, []);
+
+  // Save state to CSV whenever player state changes (but not on initial load)
+  useEffect(() => {
+    if (isInitialLoad.current) return;
+    
+    // Save to localStorage immediately (sync backup)
     savePlayerState(state.player);
+    
+    // Save to CSV file (async)
+    saveToCSV(state.player).catch((error) => {
+      console.warn('Failed to save to CSV:', error);
+    });
   }, [state.player]);
 
   const startSession = useCallback((mode: GameMode, levels: VerbLevel[]) => {
@@ -768,9 +805,16 @@ export function useGameState() {
     downloadCSV(state.player.bestTimes);
   }, [state.player.bestTimes]);
 
-  const resetProgress = useCallback(() => {
+  const resetProgress = useCallback(async () => {
     localStorage.removeItem(STORAGE_KEY);
-    dispatch({ type: 'LOAD_STATE', state: getInitialPlayerState() });
+    const initialState = getInitialPlayerState();
+    dispatch({ type: 'LOAD_STATE', state: initialState });
+    // Also reset the CSV file
+    try {
+      await saveToCSV(initialState);
+    } catch (error) {
+      console.warn('Failed to reset CSV:', error);
+    }
   }, []);
 
   const getVerbCountForLevels = useCallback((levels: VerbLevel[]) => {
@@ -817,5 +861,6 @@ export function useGameState() {
     isImperfectUnlocked,
     currentSessionLevels,
     verbsByLevel,
+    isLoading,
   };
 }
