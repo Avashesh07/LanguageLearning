@@ -2,21 +2,21 @@
 // Uses a backend server to persist data to a CSV file in the project folder
 // This ensures data persists even when browser data is wiped
 
-import type { PlayerState, TimeRecord, LevelProgress, VerbLevel, GameMode } from '../types';
+import type { PlayerState, TimeRecord, LevelProgress, VerbLevel, GameMode, TavoiteProgress } from '../types';
 
 const API_BASE = '/api';
 
 // Convert PlayerState to CSV format
 function playerStateToCSV(state: PlayerState): string {
-  const headers = ['Type', 'Level', 'CompletionType', 'Mode', 'Levels', 'TimeMs', 'Date', 'Accuracy', 'VerbCount'];
+  const headers = ['Type', 'Level', 'CompletionType', 'Mode', 'Levels', 'TimeMs', 'Date', 'Accuracy', 'VerbCount', 'TavoiteId'];
   const rows: string[][] = [];
 
   // Add level progress rows - one row per completion type
   state.levelProgress.forEach((lp) => {
-    rows.push(['level-progress', lp.level, 'recallCompleted', '', '', '', '', '', lp.recallCompleted ? 'true' : 'false']);
-    rows.push(['level-progress', lp.level, 'activeRecallCompleted', '', '', '', '', '', lp.activeRecallCompleted ? 'true' : 'false']);
-    rows.push(['level-progress', lp.level, 'conjugationCompleted', '', '', '', '', '', lp.conjugationCompleted ? 'true' : 'false']);
-    rows.push(['level-progress', lp.level, 'imperfectCompleted', '', '', '', '', '', lp.imperfectCompleted ? 'true' : 'false']);
+    rows.push(['level-progress', lp.level, 'recallCompleted', '', '', '', '', '', lp.recallCompleted ? 'true' : 'false', '']);
+    rows.push(['level-progress', lp.level, 'activeRecallCompleted', '', '', '', '', '', lp.activeRecallCompleted ? 'true' : 'false', '']);
+    rows.push(['level-progress', lp.level, 'conjugationCompleted', '', '', '', '', '', lp.conjugationCompleted ? 'true' : 'false', '']);
+    rows.push(['level-progress', lp.level, 'imperfectCompleted', '', '', '', '', '', lp.imperfectCompleted ? 'true' : 'false', '']);
   });
 
   // Add best times rows
@@ -31,8 +31,27 @@ function playerStateToCSV(state: PlayerState): string {
       bt.date,
       bt.accuracy.toString(),
       bt.verbCount.toString(),
+      '',
     ]);
   });
+
+  // Add tavoite progress rows
+  if (state.tavoiteProgress) {
+    state.tavoiteProgress.forEach((tp) => {
+      rows.push([
+        'tavoite-progress',
+        '',
+        'activeRecallCompleted',
+        '',
+        '',
+        tp.bestTimeMs?.toString() || '',
+        tp.bestDate || '',
+        '',
+        tp.activeRecallCompleted ? 'true' : 'false',
+        tp.tavoiteId.toString(),
+      ]);
+    });
+  }
 
   const csv = [headers, ...rows].map((row) => row.map(cell => `"${cell || ''}"`).join(',')).join('\n');
   return csv;
@@ -47,6 +66,7 @@ function csvToPlayerState(csv: string): PlayerState | null {
     const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, ''));
     const levelProgressMap = new Map<VerbLevel, Partial<LevelProgress>>();
     const bestTimes: TimeRecord[] = [];
+    const tavoiteProgressMap = new Map<number, TavoiteProgress>();
 
     for (let i = 1; i < lines.length; i++) {
       // Handle CSV parsing with quoted values
@@ -99,6 +119,16 @@ function csvToPlayerState(csv: string): PlayerState | null {
           accuracy: parseInt(row.Accuracy) || 0,
           verbCount: parseInt(row.VerbCount) || 0,
         });
+      } else if (row.Type === 'tavoite-progress' && row.TavoiteId) {
+        const tavoiteId = parseInt(row.TavoiteId);
+        if (!isNaN(tavoiteId)) {
+          tavoiteProgressMap.set(tavoiteId, {
+            tavoiteId,
+            activeRecallCompleted: row.VerbCount === 'true',
+            bestTimeMs: row.TimeMs ? parseInt(row.TimeMs) : undefined,
+            bestDate: row.Date || undefined,
+          });
+        }
       }
     }
 
@@ -110,7 +140,9 @@ function csvToPlayerState(csv: string): PlayerState | null {
       imperfectCompleted: lp.imperfectCompleted || false,
     }));
 
-    return { levelProgress, bestTimes };
+    const tavoiteProgress: TavoiteProgress[] = Array.from(tavoiteProgressMap.values());
+
+    return { levelProgress, bestTimes, tavoiteProgress: tavoiteProgress.length > 0 ? tavoiteProgress : undefined };
   } catch (error) {
     console.error('Failed to parse CSV:', error);
     return null;

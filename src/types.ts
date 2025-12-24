@@ -1,6 +1,6 @@
 // Finnish Verb Arena - Types
 
-export type GameMode = 'menu' | 'recall' | 'active-recall' | 'conjugation' | 'consonant-gradation' | 'imperfect';
+export type GameMode = 'menu' | 'recall' | 'active-recall' | 'conjugation' | 'consonant-gradation' | 'imperfect' | 'vocabulary-recall' | 'vocabulary-active-recall';
 
 export type VerbLevel = 'A1' | 'A2' | 'B1';
 
@@ -62,11 +62,20 @@ export interface LevelProgress {
   imperfectCompleted?: boolean;
 }
 
+// Track completion per Tavoite (vocabulary)
+export interface TavoiteProgress {
+  tavoiteId: number;
+  activeRecallCompleted: boolean; // Completed with 0 mistakes
+  bestTimeMs?: number;
+  bestDate?: string;
+}
+
 // Player's persistent state
 export interface PlayerState {
   levelProgress: LevelProgress[];
   bestTimes: TimeRecord[];
   imperfectCompleted?: boolean; // Track imperfect mode completion
+  tavoiteProgress?: TavoiteProgress[]; // Track Tavoite completions
 }
 
 // Full game state
@@ -84,6 +93,9 @@ export interface GameState {
   currentGradationQuestion?: ConsonantGradationQuestion;
   gradationSession?: ConsonantGradationSessionState;
   questions: ConsonantGradationQuestion[];
+  // Vocabulary (Kurssin Arvostelu) specific
+  vocabularySession?: VocabularySessionState;
+  currentVocabularyWord?: CurrentVocabularyWord;
 }
 
 export interface FeedbackData {
@@ -130,4 +142,31 @@ export interface ConsonantGradationSessionState {
   endTime: number | null;
   wrongCount: number;
   isComplete: boolean;
+}
+
+// Kurssin Arvostelu (Course Vocabulary) Types
+export interface VocabularyWordState {
+  finnish: string;
+  english: string;
+  synonyms?: string[]; // Alternative accepted English answers
+  finnishSynonyms?: string[]; // Alternative accepted Finnish answers
+  correctCount: number;
+  wrongCount: number;
+  eliminated: boolean;
+}
+
+export interface VocabularySessionState {
+  mode: 'vocabulary-recall' | 'vocabulary-active-recall';
+  selectedTavoites: number[];
+  words: VocabularyWordState[];
+  currentWordIndex: number;
+  startTime: number | null;
+  endTime: number | null;
+  wrongCount: number;
+  isComplete: boolean;
+}
+
+export interface CurrentVocabularyWord {
+  finnish: string;
+  english: string;
 }

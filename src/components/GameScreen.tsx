@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { GameState } from '../types';
 import { getAllRules } from '../data/consonantGradation';
+import { getTavoiteById } from '../data/tavoiteVocabulary';
+import { CloseIcon, CheckIcon } from './Icons';
 
 interface GameScreenProps {
   state: GameState;
@@ -22,11 +24,11 @@ export function GameScreen({
   const [answer, setAnswer] = useState('');
   const [elapsedTime, setElapsedTime] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { session, currentVerb, feedback, mode, currentPerson, currentPolarity, currentSentence, currentGradationQuestion, gradationSession } = state;
+  const { session, currentVerb, feedback, mode, currentPerson, currentPolarity, currentSentence, currentGradationQuestion, gradationSession, vocabularySession, currentVocabularyWord } = state;
 
   useEffect(() => {
-    const startTime = session?.startTime || gradationSession?.startTime;
-    const isComplete = session?.isComplete || gradationSession?.isComplete;
+    const startTime = session?.startTime || gradationSession?.startTime || vocabularySession?.startTime;
+    const isComplete = session?.isComplete || gradationSession?.isComplete || vocabularySession?.isComplete;
     
     if (!startTime || isComplete) return;
 
@@ -35,13 +37,13 @@ export function GameScreen({
     }, 100);
 
     return () => clearInterval(interval);
-  }, [session?.startTime, session?.isComplete, gradationSession?.startTime, gradationSession?.isComplete]);
+  }, [session?.startTime, session?.isComplete, gradationSession?.startTime, gradationSession?.isComplete, vocabularySession?.startTime, vocabularySession?.isComplete]);
 
   useEffect(() => {
     if (!feedback && inputRef.current) {
       inputRef.current.focus();
     }
-  }, [feedback, currentVerb]);
+  }, [feedback, currentVerb, currentVocabularyWord]);
 
   useEffect(() => {
     if (feedback && feedback.isCorrect) {
@@ -90,7 +92,7 @@ export function GameScreen({
       <div className="game-screen">
         <div className="game-header">
           <button className="quit-btn" onClick={onQuit}>
-            ✕ Quit
+            <CloseIcon size={14} /> Quit
           </button>
           <div className="timer">{formatTime(elapsedTime)}</div>
           <div className="progress-stats">
@@ -247,7 +249,137 @@ export function GameScreen({
             )}
             
             {feedback.isCorrect && (
-              <div className="eliminated-notice">✓ Next question!</div>
+              <div className="eliminated-notice"><CheckIcon size={14} color="#f0c674" /> Next question!</div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Handle vocabulary modes
+  const isVocabularyMode = mode === 'vocabulary-recall' || mode === 'vocabulary-active-recall';
+  
+  if (isVocabularyMode) {
+    if (!vocabularySession || !currentVocabularyWord) return null;
+    
+    const activeCount = vocabularySession.words.filter((w) => !w.eliminated).length;
+    const eliminatedCount = vocabularySession.words.length - activeCount;
+    const currentWordState = vocabularySession.words[vocabularySession.currentWordIndex];
+    const hasWrongAnswer = currentWordState.wrongCount > 0;
+    
+    // Get tavoite info for display
+    const tavoiteNames = vocabularySession.selectedTavoites
+      .map(id => getTavoiteById(id)?.name || `Tavoite ${id}`)
+      .slice(0, 2)
+      .join(', ');
+    const moreCount = vocabularySession.selectedTavoites.length > 2 
+      ? ` +${vocabularySession.selectedTavoites.length - 2}` 
+      : '';
+    
+    const isRecall = mode === 'vocabulary-recall';
+    const promptText = isRecall ? currentVocabularyWord.finnish : currentVocabularyWord.english;
+    const promptLabel = isRecall ? 'Finnish' : 'English';
+    const placeholderText = isRecall ? 'English translation...' : 'Finnish word...';
+    
+    return (
+      <div className="game-screen vocabulary-mode">
+        <div className="game-header">
+          <button className="quit-btn" onClick={onQuit}>
+            <CloseIcon size={14} /> Quit
+          </button>
+          <div className="timer">{formatTime(elapsedTime)}</div>
+          <div className="progress-stats">
+            <span className="eliminated">{eliminatedCount}</span>
+            <span className="separator">/</span>
+            <span className="total">{vocabularySession.words.length}</span>
+          </div>
+        </div>
+
+        <div className="game-stats-bar">
+          <div className="stat-item">
+            <span className="stat-label">Remaining</span>
+            <span className="stat-value">{activeCount}</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-label">Mistakes</span>
+            <span className="stat-value mistakes">{vocabularySession.wrongCount}</span>
+          </div>
+          <div className="stat-item tavoite-info">
+            <span className="stat-label">Tavoites</span>
+            <span className="stat-value small">{tavoiteNames}{moreCount}</span>
+          </div>
+        </div>
+
+        <div className="prompt-area">
+          <div className="prompt-box vocabulary">
+            <div className="prompt-label">{promptLabel}</div>
+            <div className="prompt-verb">{promptText}</div>
+            
+            {hasWrongAnswer && (
+              <div className="retry-indicator">
+                Try again
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="input-area">
+          <form onSubmit={handleSubmit} className="input-wrapper">
+            <input
+              ref={inputRef}
+              type="text"
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+              placeholder={placeholderText}
+              disabled={!!feedback}
+              autoComplete="off"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            <button
+              type="submit"
+              className="submit-btn"
+              disabled={!answer.trim() || !!feedback}
+            >
+              Enter
+            </button>
+          </form>
+        </div>
+
+        {feedback && (
+          <div className={`feedback ${feedback.isCorrect ? 'correct' : 'incorrect'} ${!feedback.isCorrect ? 'detailed' : ''}`}>
+            <div className="feedback-title">
+              {feedback.isCorrect ? 'CORRECT!' : 'WRONG'}
+            </div>
+            
+            {!feedback.isCorrect && (
+              <div className="feedback-learning">
+                <div className="feedback-your-answer">
+                  You typed: <span>{feedback.userAnswer}</span>
+                </div>
+                <div className="feedback-correct-answer">
+                  Correct: <span>{feedback.correctAnswer}</span>
+                </div>
+                
+                <div className="feedback-section">
+                  <div className="feedback-section-title">Word Pair</div>
+                  <div className="vocabulary-pair">
+                    <span className="finnish">{currentVocabularyWord.finnish}</span>
+                    <span className="arrow">→</span>
+                    <span className="english">{currentVocabularyWord.english}</span>
+                  </div>
+                </div>
+
+                <button className="feedback-continue-btn" onClick={handleContinue}>
+                  Continue
+                </button>
+              </div>
+            )}
+            
+            {feedback.isCorrect && (
+              <div className="eliminated-notice"><CheckIcon size={14} color="#f0c674" /> Eliminated!</div>
             )}
           </div>
         )}
@@ -452,7 +584,7 @@ export function GameScreen({
           )}
           
           {feedback.isCorrect && (
-            <div className="eliminated-notice">✓ Eliminated!</div>
+            <div className="eliminated-notice"><CheckIcon size={14} color="#f0c674" /> Eliminated!</div>
           )}
         </div>
       )}

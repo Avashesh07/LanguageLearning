@@ -12,10 +12,13 @@ import type {
   Polarity,
   ConsonantGradationQuestion,
   ConsonantGradationSessionState,
+  VocabularySessionState,
+  VocabularyWordState,
 } from '../types';
 import { getVerbsForLevels, verbsByLevel, verbTypeInfo, negativeInfo, getRandomSentence, getRandomImperfectSentence } from '../data/verbs';
 import { getAllRules, createPracticeQuestions, type GradationRule } from '../data/consonantGradation';
 import { saveToCSV, loadFromCSV } from '../utils/csvDatabase';
+import { getWordsForTavoites, getAllTavoites, getWordCountForTavoites } from '../data/tavoiteVocabulary';
 
 const STORAGE_KEY = 'finnish-verb-arena-v4';
 
@@ -23,6 +26,7 @@ const PERSONS: Person[] = ['minä', 'sinä', 'hän', 'me', 'te', 'he'];
 
 type GameAction =
   | { type: 'START_SESSION'; mode: GameMode; levels: VerbLevel[] }
+  | { type: 'START_VOCABULARY_SESSION'; mode: 'vocabulary-recall' | 'vocabulary-active-recall'; tavoites: number[] }
   | { type: 'SUBMIT_ANSWER'; answer: string }
   | { type: 'NEXT_VERB' }
   | { type: 'CLEAR_FEEDBACK' }
@@ -37,6 +41,7 @@ function getInitialPlayerState(): PlayerState {
       { level: 'B1', recallCompleted: false, activeRecallCompleted: false, conjugationCompleted: false },
     ],
     bestTimes: [],
+    tavoiteProgress: [],
   };
 }
 
@@ -129,7 +134,139 @@ function getInitialState(): GameState {
     currentGradationQuestion: undefined,
     gradationSession: undefined,
     questions: [],
+    vocabularySession: undefined,
+    currentVocabularyWord: undefined,
   };
+}
+
+// Vocabulary Session Helpers
+function createVocabularySession(mode: 'vocabulary-recall' | 'vocabulary-active-recall', tavoites: number[]): VocabularySessionState {
+  const words = getWordsForTavoites(tavoites);
+  
+  const shuffledWords: VocabularyWordState[] = [...words]
+    .sort(() => Math.random() - 0.5)
+    .map((w) => ({
+      finnish: w.finnish,
+      english: w.english,
+      synonyms: w.synonyms,
+      finnishSynonyms: w.finnishSynonyms,
+      correctCount: 0,
+      wrongCount: 0,
+      eliminated: false,
+    }));
+
+  return {
+    mode,
+    selectedTavoites: tavoites,
+    words: shuffledWords,
+    currentWordIndex: 0,
+    startTime: Date.now(),
+    endTime: null,
+    wrongCount: 0,
+    isComplete: false,
+  };
+}
+
+function getNextActiveWordIndex(session: VocabularySessionState, startFrom: number): number {
+  const { words } = session;
+  
+  for (let i = 0; i < words.length; i++) {
+    const idx = (startFrom + i) % words.length;
+    if (!words[idx].eliminated) {
+      return idx;
+    }
+  }
+  
+  return -1;
+}
+
+function getActiveWordCount(session: VocabularySessionState): number {
+  return session.words.filter((w) => !w.eliminated).length;
+}
+
+// Generate common variations of an English answer
+function generateEnglishVariations(english: string): string[] {
+  const variations: string[] = [english.toLowerCase()];
+  const lower = english.toLowerCase();
+  
+  // Handle "to X" verbs - accept "X" without "to"
+  if (lower.startsWith('to ')) {
+    variations.push(lower.slice(3));
+  }
+  
+  // Handle "he/she X" - accept "he X", "she X", and just "X"
+  if (lower.includes('he/she ')) {
+    variations.push(lower.replace('he/she ', 'he '));
+    variations.push(lower.replace('he/she ', 'she '));
+    variations.push(lower.replace('he/she ', ''));
+  }
+  
+  // Handle "(singular)" and "(plural)" annotations - accept without them
+  if (lower.includes(' (singular)')) {
+    variations.push(lower.replace(' (singular)', ''));
+  }
+  if (lower.includes(' (plural)')) {
+    variations.push(lower.replace(' (plural)', ''));
+  }
+  if (lower.includes('(instrument/call)')) {
+    variations.push(lower.replace(' (instrument/call)', ''));
+    variations.push(lower.replace('(instrument/call)', 'instrument'));
+    variations.push(lower.replace('(instrument/call)', 'call'));
+  }
+  
+  // Handle "X/Y" alternatives - accept either X or Y
+  if (lower.includes('/') && !lower.includes('he/she')) {
+    const parts = lower.split('/');
+    if (parts.length === 2) {
+      variations.push(parts[0].trim());
+      variations.push(parts[1].trim());
+    }
+  }
+  
+  // Handle "X (time)" style annotations
+  const parenMatch = lower.match(/^(.+?)\s*\(.+\)$/);
+  if (parenMatch) {
+    variations.push(parenMatch[1].trim());
+  }
+  
+  return variations;
+}
+
+function checkVocabularyAnswer(mode: 'vocabulary-recall' | 'vocabulary-active-recall', word: VocabularyWordState, answer: string): boolean {
+  const normalizedAnswer = answer.trim().toLowerCase();
+  
+  if (mode === 'vocabulary-recall') {
+    // Finnish to English: check if answer matches English or synonyms
+    const validAnswers = generateEnglishVariations(word.english);
+    
+    // Add explicit synonyms if defined
+    if (word.synonyms) {
+      word.synonyms.forEach(syn => {
+        validAnswers.push(...generateEnglishVariations(syn));
+      });
+    }
+    
+    return validAnswers.some(valid => valid === normalizedAnswer);
+  } else {
+    // English to Finnish: check if answer matches Finnish or Finnish synonyms
+    const validAnswers = [word.finnish.toLowerCase()];
+    
+    if (word.finnishSynonyms) {
+      word.finnishSynonyms.forEach(syn => {
+        validAnswers.push(syn.toLowerCase());
+      });
+    }
+    
+    return validAnswers.some(valid => valid === normalizedAnswer);
+  }
+}
+
+function getVocabularyExpectedAnswer(mode: 'vocabulary-recall' | 'vocabulary-active-recall', word: VocabularyWordState): string {
+  if (mode === 'vocabulary-recall') {
+    return word.english;
+  } else {
+    return word.finnish;
+  }
 }
 
 function checkAnswer(mode: GameMode, verb: ReturnType<typeof getVerbsForLevels>[0], answer: string, person?: Person, polarity?: Polarity): boolean {
@@ -328,6 +465,35 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         currentSentence: sentence,
         currentGradationQuestion: undefined,
         gradationSession: undefined,
+        vocabularySession: undefined,
+        currentVocabularyWord: undefined,
+      };
+    }
+
+    case 'START_VOCABULARY_SESSION': {
+      const vocabularySession = createVocabularySession(action.mode, action.tavoites);
+      const firstWordIndex = getNextActiveWordIndex(vocabularySession, 0);
+      const firstWord = vocabularySession.words[firstWordIndex];
+      
+      return {
+        ...state,
+        mode: action.mode,
+        session: null,
+        currentVerb: null,
+        feedback: null,
+        currentPerson: undefined,
+        currentPolarity: undefined,
+        currentSentence: undefined,
+        currentGradationQuestion: undefined,
+        gradationSession: undefined,
+        vocabularySession: {
+          ...vocabularySession,
+          currentWordIndex: firstWordIndex,
+        },
+        currentVocabularyWord: firstWord ? {
+          finnish: firstWord.finnish,
+          english: firstWord.english,
+        } : undefined,
       };
     }
 
@@ -432,6 +598,104 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             ...session,
             wrongCount: newWrongCount,
           },
+          feedback,
+        };
+      }
+      
+      // Handle vocabulary modes
+      if (state.mode === 'vocabulary-recall' || state.mode === 'vocabulary-active-recall') {
+        if (!state.vocabularySession || !state.currentVocabularyWord) return state;
+        
+        const vocabSession = state.vocabularySession;
+        const currentWordState = vocabSession.words[vocabSession.currentWordIndex];
+        
+        const isCorrect = checkVocabularyAnswer(state.mode, currentWordState, action.answer);
+        const newWrongForWord = currentWordState.wrongCount + (isCorrect ? 0 : 1);
+        const shouldEliminate = isCorrect;
+        
+        const newWordState: VocabularyWordState = {
+          ...currentWordState,
+          correctCount: isCorrect ? currentWordState.correctCount + 1 : currentWordState.correctCount,
+          wrongCount: newWrongForWord,
+          eliminated: shouldEliminate,
+        };
+        
+        const newWords = [...vocabSession.words];
+        newWords[vocabSession.currentWordIndex] = newWordState;
+        
+        const newWrongCount = vocabSession.wrongCount + (isCorrect ? 0 : 1);
+        const newVocabSession: VocabularySessionState = {
+          ...vocabSession,
+          words: newWords,
+          wrongCount: newWrongCount,
+        };
+        
+        const activeCount = getActiveWordCount(newVocabSession);
+        const isComplete = activeCount === 0;
+        
+        let newPlayer = state.player;
+        
+        if (isComplete) {
+          newVocabSession.isComplete = true;
+          newVocabSession.endTime = Date.now();
+          
+          // For Active Recall mode with 0 mistakes, save Tavoite progress
+          if (state.mode === 'vocabulary-active-recall' && newVocabSession.wrongCount === 0) {
+            const timeMs = newVocabSession.endTime - (newVocabSession.startTime || newVocabSession.endTime);
+            const currentDate = new Date().toISOString().split('T')[0];
+            
+            // Update progress for each selected Tavoite
+            const existingProgress = state.player.tavoiteProgress || [];
+            const newTavoiteProgress = [...existingProgress];
+            
+            for (const tavoiteId of newVocabSession.selectedTavoites) {
+              const existingIdx = newTavoiteProgress.findIndex(tp => tp.tavoiteId === tavoiteId);
+              
+              if (existingIdx >= 0) {
+                // Update existing - only update time if better
+                const existing = newTavoiteProgress[existingIdx];
+                if (!existing.bestTimeMs || timeMs < existing.bestTimeMs) {
+                  newTavoiteProgress[existingIdx] = {
+                    ...existing,
+                    activeRecallCompleted: true,
+                    bestTimeMs: timeMs,
+                    bestDate: currentDate,
+                  };
+                } else if (!existing.activeRecallCompleted) {
+                  newTavoiteProgress[existingIdx] = {
+                    ...existing,
+                    activeRecallCompleted: true,
+                  };
+                }
+              } else {
+                // Add new progress
+                newTavoiteProgress.push({
+                  tavoiteId,
+                  activeRecallCompleted: true,
+                  bestTimeMs: timeMs,
+                  bestDate: currentDate,
+                });
+              }
+            }
+            
+            newPlayer = {
+              ...state.player,
+              tavoiteProgress: newTavoiteProgress,
+            };
+          }
+        }
+        
+        const correctAnswer = getVocabularyExpectedAnswer(state.mode, currentWordState);
+        const feedback: FeedbackData = {
+          isCorrect,
+          userAnswer: action.answer,
+          correctAnswer,
+        };
+        
+        return {
+          ...state,
+          player: newPlayer,
+          vocabularySession: newVocabSession,
           feedback,
         };
       }
@@ -659,6 +923,38 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
       
+      // Handle vocabulary modes
+      if (state.mode === 'vocabulary-recall' || state.mode === 'vocabulary-active-recall') {
+        if (!state.vocabularySession) return state;
+        
+        const nextIndex = getNextActiveWordIndex(
+          state.vocabularySession,
+          state.vocabularySession.currentWordIndex + 1
+        );
+        
+        if (nextIndex === -1 || state.vocabularySession.isComplete) {
+          return {
+            ...state,
+            feedback: null,
+          };
+        }
+        
+        const nextWord = state.vocabularySession.words[nextIndex];
+        
+        return {
+          ...state,
+          vocabularySession: {
+            ...state.vocabularySession,
+            currentWordIndex: nextIndex,
+          },
+          currentVocabularyWord: {
+            finnish: nextWord.finnish,
+            english: nextWord.english,
+          },
+          feedback: null,
+        };
+      }
+      
       // Regular verb modes
       if (!state.session) return state;
 
@@ -723,6 +1019,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         currentSentence: undefined,
         currentGradationQuestion: undefined,
         gradationSession: undefined,
+        vocabularySession: undefined,
+        currentVocabularyWord: undefined,
       };
     }
 
@@ -844,6 +1142,17 @@ export function useGameState() {
     });
   }, [state.player.levelProgress]);
 
+  // Vocabulary (Kurssin Arvostelu) related
+  const [selectedTavoites, setSelectedTavoites] = useState<number[]>([1]);
+  
+  const startVocabularySession = useCallback((mode: 'vocabulary-recall' | 'vocabulary-active-recall', tavoites: number[]) => {
+    dispatch({ type: 'START_VOCABULARY_SESSION', mode, tavoites });
+  }, []);
+  
+  const getTavoiteWordCount = useCallback((tavoites: number[]) => {
+    return getWordCountForTavoites(tavoites);
+  }, []);
+
   return {
     state,
     selectedLevels,
@@ -862,5 +1171,11 @@ export function useGameState() {
     currentSessionLevels,
     verbsByLevel,
     isLoading,
+    // Vocabulary exports
+    selectedTavoites,
+    setSelectedTavoites,
+    startVocabularySession,
+    getTavoiteWordCount,
+    allTavoites: getAllTavoites(),
   };
 }

@@ -108,6 +108,13 @@
   margin-top: 0.75rem;
 }
 
+.completion-info {
+  font-size: 0.9rem;
+  color: var(--accent-green);
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
 /* Level Badges */
 .results-levels {
   display: flex;
@@ -1051,4 +1058,279 @@
   .sentence-blank {
     min-width: 120px;
   }
+}
+
+/* Tab Switcher */
+.tab-switcher {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  background-color: var(--bg-secondary);
+  padding: 0.5rem;
+  border: 2px solid var(--border-color);
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  font-size: 1.1rem;
+  border: 2px solid transparent;
+  background-color: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover {
+  color: var(--text-primary);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.tab-btn.active {
+  border-color: var(--highlight-amber);
+  color: var(--highlight-amber);
+  background-color: rgba(240, 198, 116, 0.1);
+}
+
+/* Tavoite Selector */
+.tavoite-selector {
+  width: 100%;
+  max-width: 500px;
+  margin-bottom: 1.5rem;
+}
+
+.tavoite-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.tavoite-header h3 {
+  font-size: 1.25rem;
+  color: var(--highlight-amber);
+}
+
+.tavoite-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.small-btn {
+  font-size: 0.9rem;
+  padding: 0.4rem 0.75rem;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.small-btn:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.tavoite-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.5rem;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 0.5rem;
+  background-color: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+}
+
+.tavoite-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  padding: 0.5rem 0.75rem;
+  border: 2px solid var(--border-color);
+  background-color: var(--bg-primary);
+  opacity: 0.6;
+  cursor: pointer;
+  transition: opacity 0.2s, border-color 0.2s;
+  text-align: left;
+}
+
+.tavoite-btn:hover {
+  opacity: 0.8;
+}
+
+.tavoite-btn.selected {
+  opacity: 1;
+  border-color: var(--highlight-amber);
+  background-color: rgba(240, 198, 116, 0.1);
+}
+
+.tavoite-btn.completed {
+  border-color: var(--accent-green);
+}
+
+.tavoite-btn.selected.completed {
+  border-color: var(--highlight-amber);
+}
+
+.tavoite-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.tavoite-id {
+  font-size: 1.25rem;
+  color: var(--highlight-amber);
+  font-weight: bold;
+}
+
+.tavoite-btn.completed .tavoite-id {
+  color: var(--accent-green);
+}
+
+.tavoite-name {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.tavoite-count {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.tavoite-time {
+  font-size: 0.7rem;
+  color: var(--accent-green);
+  font-weight: bold;
+}
+
+/* Vocabulary Mode Buttons */
+.vocabulary-modes {
+  margin-top: 1rem;
+}
+
+.mode-button.vocabulary {
+  border-color: #6b8cce;
+}
+
+.mode-button.vocabulary:hover {
+  background-color: rgba(107, 140, 206, 0.15);
+  border-color: #8ba4d6;
+}
+
+.mode-button.vocabulary .mode-name {
+  color: #8ba4d6;
+}
+
+.word-count {
+  font-size: 1rem;
+  color: var(--text-secondary);
+}
+
+/* Vocabulary Game Screen */
+.game-screen.vocabulary-mode .prompt-box.vocabulary {
+  border-color: #6b8cce;
+}
+
+.stat-item.tavoite-info {
+  max-width: 150px;
+}
+
+.stat-value.small {
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Vocabulary Pair Display in Feedback */
+.vocabulary-pair {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  font-size: 1.4rem;
+  padding: 1rem;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  margin-top: 0.5rem;
+}
+
+.vocabulary-pair .finnish {
+  color: var(--highlight-amber);
+  font-weight: bold;
+}
+
+.vocabulary-pair .arrow {
+  color: var(--text-secondary);
+}
+
+.vocabulary-pair .english {
+  color: var(--accent-green);
+  font-weight: bold;
+}
+
+/* Results Tavoite Badge */
+.results-tavoites {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.tavoite-badge {
+  font-size: 1rem;
+  color: #8ba4d6;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid #6b8cce;
+  background-color: rgba(107, 140, 206, 0.15);
+}
+
+.results-mode.vocabulary {
+  color: #8ba4d6;
+}
+
+/* Responsive for Tavoite grid */
+@media (max-width: 480px) {
+  .tavoite-grid {
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    max-height: 250px;
+  }
+  
+  .tab-btn {
+    font-size: 0.95rem;
+    padding: 0.6rem 0.5rem;
+  }
+}
+
+/* 8-bit Icons */
+.tab-btn svg,
+.mode-name svg,
+.quit-btn svg,
+.eliminated-notice svg,
+.new-record svg,
+.unlock-notice svg,
+.check svg {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 0.35rem;
+}
+
+.check svg {
+  margin-right: 0.15rem;
+}
+
+.new-record svg {
+  margin: 0 0.5rem;
+}
+
+.unlock-notice h3 svg {
+  margin-right: 0.5rem;
 }
