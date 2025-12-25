@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import type { GameMode, PlayerState, VerbLevel } from '../types';
+import type { GameMode, PlayerState, VerbLevel, CaseCategory } from '../types';
 import { verbsByLevel } from '../data/verbs';
 import type { Tavoite } from '../data/tavoiteVocabulary';
-import { TargetIcon, BookIcon, OpenBookIcon, PencilIcon, CheckIcon } from './Icons';
+import type { CaseGroup } from '../data/finnishCases';
+import { getArticlesByLevel, getYleNewsArticles, type YleArticle } from '../data/yleArticles';
+import { TargetIcon, BookIcon, OpenBookIcon, PencilIcon, CheckIcon, MapPinIcon, GlobeIcon, NewspaperIcon } from './Icons';
 
 interface MenuProps {
   player: PlayerState;
@@ -22,9 +24,17 @@ interface MenuProps {
   onStartVocabularySession: (mode: 'vocabulary-recall' | 'vocabulary-active-recall', tavoites: number[]) => void;
   getTavoiteWordCount: (tavoites: number[]) => number;
   allTavoites: Tavoite[];
+  // Cases props
+  selectedCaseCategories: CaseCategory[];
+  onSelectCaseCategories: (categories: CaseCategory[]) => void;
+  onStartCasesSession: (categories: CaseCategory[]) => void;
+  getCasesSentenceCount: (categories: CaseCategory[]) => number;
+  caseGroups: CaseGroup[];
+  // Reading props
+  onStartReading: (article: YleArticle) => void;
   // Tab management
-  initialTab?: 'verbs' | 'vocabulary';
-  onTabChange?: (tab: 'verbs' | 'vocabulary') => void;
+  initialTab?: 'verbs' | 'vocabulary' | 'cases' | 'reading';
+  onTabChange?: (tab: 'verbs' | 'vocabulary' | 'cases' | 'reading') => void;
 }
 
 const LEVELS: VerbLevel[] = ['A1', 'A2'];
@@ -46,20 +56,42 @@ export function Menu({
   onStartVocabularySession,
   getTavoiteWordCount,
   allTavoites,
+  selectedCaseCategories,
+  onSelectCaseCategories,
+  onStartCasesSession,
+  getCasesSentenceCount,
+  caseGroups,
+  onStartReading,
   initialTab = 'verbs',
   onTabChange,
 }: MenuProps) {
-  const [activeTab, setActiveTab] = useState<'verbs' | 'vocabulary'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'verbs' | 'vocabulary' | 'cases' | 'reading'>(initialTab);
   
   // Update local state when initialTab changes (e.g., when returning from quiz)
   useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab]);
   
-  const handleTabChange = (tab: 'verbs' | 'vocabulary') => {
+  const handleTabChange = (tab: 'verbs' | 'vocabulary' | 'cases' | 'reading') => {
     setActiveTab(tab);
     onTabChange?.(tab);
   };
+
+  // Get articles for the reading tab
+  const a1Articles = getArticlesByLevel('A1');
+  const yleNewsArticles = getYleNewsArticles();
+
+  const toggleCaseCategory = (category: CaseCategory) => {
+    if (selectedCaseCategories.includes(category)) {
+      if (selectedCaseCategories.length > 1) {
+        onSelectCaseCategories(selectedCaseCategories.filter((c) => c !== category));
+      }
+    } else {
+      onSelectCaseCategories([...selectedCaseCategories, category]);
+    }
+  };
+
+  const casesSentenceCount = getCasesSentenceCount(selectedCaseCategories);
   
   const bestTimes = player.bestTimes || [];
   const verbCount = getVerbCountForLevels(selectedLevels);
@@ -132,9 +164,182 @@ export function Menu({
         >
           <BookIcon size={18} /> Kurssin Arvostelu
         </button>
+        <button 
+          className={`tab-btn ${activeTab === 'cases' ? 'active' : ''}`}
+          onClick={() => handleTabChange('cases')}
+        >
+          <MapPinIcon size={18} /> Sijat (Cases)
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'reading' ? 'active' : ''}`}
+          onClick={() => handleTabChange('reading')}
+        >
+          <NewspaperIcon size={18} /> Lukeminen (Reading)
+        </button>
       </div>
 
-      {activeTab === 'verbs' ? (
+      {activeTab === 'cases' ? (
+        <>
+          <p className="menu-subtitle">Master Finnish cases - practice one at a time or combine</p>
+
+          {/* Case Category Selection - Organized by Type */}
+          <div className="case-selector">
+            {/* Individual Cases - Practice One at a Time */}
+            <div className="case-group-section">
+              <h3 className="case-section-title">Practice One Case</h3>
+              <p className="case-section-desc">Master each case ending individually</p>
+              <div className="case-category-grid individual">
+                {caseGroups.filter(g => g.groupType === 'individual').map((group) => {
+                  const isSelected = selectedCaseCategories.includes(group.id as CaseCategory);
+                  const progress = player.casesProgress?.find(cp => cp.category === group.id);
+                  const isCompleted = progress?.fillBlankCompleted;
+                  
+                  return (
+                    <button
+                      key={group.id}
+                      className={`case-category-btn compact ${isSelected ? 'selected' : ''} ${isCompleted ? 'completed' : ''}`}
+                      onClick={() => toggleCaseCategory(group.id as CaseCategory)}
+                      style={{ '--case-color': group.color } as React.CSSProperties}
+                    >
+                      <span className="case-category-name">{group.name}</span>
+                      <span className="case-category-desc">{group.description}</span>
+                      {isCompleted && <CheckIcon size={12} color="#4caf50" className="case-check" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Movement-Based Groups */}
+            <div className="case-group-section">
+              <h3 className="case-section-title">Practice by Movement</h3>
+              <p className="case-section-desc">Group cases by what they express</p>
+              <div className="case-category-grid movement">
+                {caseGroups.filter(g => g.groupType === 'movement').map((group) => {
+                  const isSelected = selectedCaseCategories.includes(group.id as CaseCategory);
+                  const progress = player.casesProgress?.find(cp => cp.category === group.id);
+                  const isCompleted = progress?.fillBlankCompleted;
+                  
+                  return (
+                    <button
+                      key={group.id}
+                      className={`case-category-btn movement ${isSelected ? 'selected' : ''} ${isCompleted ? 'completed' : ''}`}
+                      onClick={() => toggleCaseCategory(group.id as CaseCategory)}
+                      style={{ '--case-color': group.color } as React.CSSProperties}
+                    >
+                      <div className="case-category-header">
+                        <span className="case-category-name">{group.name}</span>
+                        {isCompleted && <CheckIcon size={12} color="#4caf50" />}
+                      </div>
+                      <span className="case-category-finnish">{group.finnishName}</span>
+                      <span className="case-category-desc">{group.description}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Broad Groups */}
+            <div className="case-group-section">
+              <h3 className="case-section-title">Practice All Together</h3>
+              <p className="case-section-desc">Challenge yourself with mixed cases</p>
+              <div className="case-category-grid broad">
+                {caseGroups.filter(g => g.groupType === 'broad').map((group) => {
+                  const isSelected = selectedCaseCategories.includes(group.id as CaseCategory);
+                  const progress = player.casesProgress?.find(cp => cp.category === group.id);
+                  const isCompleted = progress?.fillBlankCompleted;
+                  
+                  return (
+                    <button
+                      key={group.id}
+                      className={`case-category-btn broad ${isSelected ? 'selected' : ''} ${isCompleted ? 'completed' : ''}`}
+                      onClick={() => toggleCaseCategory(group.id as CaseCategory)}
+                      style={{ '--case-color': group.color } as React.CSSProperties}
+                    >
+                      <div className="case-category-header">
+                        <span className="case-category-icon">
+                          {group.id === 'location' ? <GlobeIcon size={18} /> : <MapPinIcon size={18} />}
+                        </span>
+                        {isCompleted && <CheckIcon size={12} color="#4caf50" />}
+                      </div>
+                      <span className="case-category-name">{group.name}</span>
+                      <span className="case-category-desc">{group.description}</span>
+                      <div className="case-category-cases">
+                        {group.cases.map(c => (
+                          <span key={c} className="case-tag">{c}</span>
+                        ))}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <p className="selected-info">
+              Selected: {selectedCaseCategories.length} categor{selectedCaseCategories.length !== 1 ? 'ies' : 'y'} ({casesSentenceCount} sentences)
+            </p>
+          </div>
+
+          {/* Case Reference Card */}
+          <div className="case-reference-card">
+            <h4>Quick Reference</h4>
+            <div className="case-reference-grid">
+              <div className="case-reference-group location">
+                <div className="reference-group-title">📍 Location (Inside)</div>
+                <div className="reference-item">
+                  <span className="case-name">Inessive</span>
+                  <span className="case-ending">-ssa/-ssä</span>
+                  <span className="case-meaning">Missä? (where)</span>
+                </div>
+                <div className="reference-item">
+                  <span className="case-name">Elative</span>
+                  <span className="case-ending">-sta/-stä</span>
+                  <span className="case-meaning">Mistä? (from)</span>
+                </div>
+                <div className="reference-item">
+                  <span className="case-name">Illative</span>
+                  <span className="case-ending">-Vn/-seen</span>
+                  <span className="case-meaning">Mihin? (into)</span>
+                </div>
+              </div>
+              <div className="case-reference-group surface">
+                <div className="reference-group-title">🔲 Surface (On)</div>
+                <div className="reference-item">
+                  <span className="case-name">Adessive</span>
+                  <span className="case-ending">-lla/-llä</span>
+                  <span className="case-meaning">Millä? (on)</span>
+                </div>
+                <div className="reference-item">
+                  <span className="case-name">Ablative</span>
+                  <span className="case-ending">-lta/-ltä</span>
+                  <span className="case-meaning">Miltä? (from)</span>
+                </div>
+                <div className="reference-item">
+                  <span className="case-name">Allative</span>
+                  <span className="case-ending">-lle</span>
+                  <span className="case-meaning">Mille? (to)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Cases Game Modes */}
+          <div className="menu-modes cases-modes">
+            <button
+              className="mode-button cases"
+              onClick={() => onStartCasesSession(selectedCaseCategories)}
+            >
+              <div className="mode-info">
+                <span className="mode-name"><PencilIcon size={18} /> Fill in the Blank</span>
+                <span className="mode-desc">Complete sentences with correct case form</span>
+              </div>
+              <div className="mode-best">
+                <span className="word-count">{casesSentenceCount} sentences</span>
+              </div>
+            </button>
+          </div>
+        </>
+      ) : activeTab === 'verbs' ? (
         <>
           <p className="menu-subtitle">Master Finnish verbs level by level</p>
 
@@ -369,6 +574,60 @@ export function Menu({
                 <span className="word-count">{vocabularyWordCount} words</span>
               </div>
             </button>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'reading' && (
+        <>
+          <p className="menu-subtitle">Lue ja ymmärrä · Read Finnish articles</p>
+
+          <div className="reading-sections-container">
+            {/* A1 Simplified Articles */}
+            <div className="reading-menu-section">
+              <div className="reading-menu-header">
+                <span className="reading-menu-level">A1</span>
+                <span className="reading-menu-label">Aloittelija</span>
+              </div>
+
+              <div className="reading-article-grid">
+                {a1Articles.map((article) => (
+                  <button
+                    key={article.id}
+                    className="reading-article-btn"
+                    onClick={() => onStartReading(article)}
+                  >
+                    <span className="rab-topic">{article.topic}</span>
+                    <span className="rab-title">{article.title}</span>
+                    <span className="rab-meta">{article.vocabulary.length} sanaa · {article.questions.length} kysymystä</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Yle News - Real Articles */}
+            <div className="reading-menu-section yle-news-section">
+              <div className="reading-menu-header yle-news-header">
+                <span className="reading-menu-level yle-news-badge">YLE</span>
+                <span className="reading-menu-label">Uutiset</span>
+              </div>
+              <p className="yle-news-desc">Aitoja uutisia Yleltä · Real news from Yle</p>
+
+              <div className="reading-article-grid">
+                {yleNewsArticles.map((article) => (
+                  <button
+                    key={article.id}
+                    className="reading-article-btn yle-news-btn"
+                    onClick={() => onStartReading(article)}
+                  >
+                    <span className="rab-topic">{article.topic}</span>
+                    <span className="rab-title">{article.title}</span>
+                    <span className="rab-meta">{article.vocabulary.length} sanaa · {article.questions.length} kysymystä</span>
+                    <span className="rab-level-indicator">{article.level}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </>
       )}

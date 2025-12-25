@@ -237,3 +237,109 @@ export function TrophyIcon({ size = 16, color = 'currentColor', className = '' }
   );
 }
 
+// Map pin icon for Cases/Location
+export function MapPinIcon({ size = 16, color = 'currentColor', className = '' }: IconProps) {
+  return (
+    <svg 
+      width={size} 
+      height={size} 
+      viewBox="0 0 16 16" 
+      fill="none" 
+      className={className}
+      style={{ imageRendering: 'pixelated' }}
+    >
+      {/* Pin body */}
+      <rect x="5" y="0" width="6" height="2" fill={color} />
+      <rect x="4" y="2" width="8" height="2" fill={color} />
+      <rect x="3" y="4" width="10" height="4" fill={color} />
+      <rect x="4" y="8" width="8" height="2" fill={color} />
+      <rect x="5" y="10" width="6" height="2" fill={color} />
+      {/* Point */}
+      <rect x="6" y="12" width="4" height="2" fill={color} />
+      <rect x="7" y="14" width="2" height="2" fill={color} />
+      {/* Center hole */}
+      <rect x="6" y="5" width="4" height="2" fill="currentColor" opacity="0.3" />
+    </svg>
+  );
+}
+
+// Eye icon for revealing content
+export function EyeIcon({ size = 16, color = 'currentColor', className = '' }: IconProps) {
+  return (
+    <svg 
+      width={size} 
+      height={size} 
+      viewBox="0 0 16 16" 
+      fill="none" 
+      className={className}
+      style={{ imageRendering: 'pixelated' }}
+    >
+      {/* Eye outline */}
+      <rect x="0" y="6" width="2" height="4" fill={color} />
+      <rect x="14" y="6" width="2" height="4" fill={color} />
+      <rect x="2" y="4" width="2" height="2" fill={color} />
+      <rect x="12" y="4" width="2" height="2" fill={color} />
+      <rect x="2" y="10" width="2" height="2" fill={color} />
+      <rect x="12" y="10" width="2" height="2" fill={color} />
+      <rect x="4" y="2" width="8" height="2" fill={color} />
+      <rect x="4" y="12" width="8" height="2" fill={color} />
+      {/* Pupil */}
+      <rect x="6" y="6" width="4" height="4" fill={color} />
+    </svg>
+  );
+}
+
+// Globe icon for World/Location
+export function GlobeIcon({ size = 16, color = 'currentColor', className = '' }: IconProps) {
+  return (
+    <svg 
+      width={size} 
+      height={size} 
+      viewBox="0 0 16 16" 
+      fill="none" 
+      className={className}
+      style={{ imageRendering: 'pixelated' }}
+    >
+      {/* Globe outer ring */}
+      <rect x="5" y="0" width="6" height="2" fill={color} />
+      <rect x="5" y="14" width="6" height="2" fill={color} />
+      <rect x="0" y="5" width="2" height="6" fill={color} />
+      <rect x="14" y="5" width="2" height="6" fill={color} />
+      <rect x="2" y="2" width="3" height="3" fill={color} />
+      <rect x="2" y="11" width="3" height="3" fill={color} />
+      <rect x="11" y="2" width="3" height="3" fill={color} />
+      <rect x="11" y="11" width="3" height="3" fill={color} />
+      {/* Horizontal line */}
+      <rect x="2" y="7" width="12" height="2" fill={color} opacity="0.6" />
+      {/* Vertical line */}
+      <rect x="7" y="2" width="2" height="12" fill={color} opacity="0.6" />
+      {/* Center */}
+      <rect x="5" y="5" width="6" height="6" fill={color} opacity="0.3" />
+    </svg>
+  );
+}
+
+// Newspaper icon for reading articles
+export function NewspaperIcon({ size = 16, color = 'currentColor', className = '' }: IconProps) {
+  return (
+    <svg 
+      width={size} 
+      height={size} 
+      viewBox="0 0 16 16" 
+      fill="none" 
+      className={className}
+      style={{ imageRendering: 'pixelated' }}
+    >
+      {/* Paper outline */}
+      <rect x="1" y="2" width="14" height="12" fill="none" stroke={color} strokeWidth="2" />
+      {/* Headline */}
+      <rect x="3" y="4" width="10" height="2" fill={color} />
+      {/* Text lines */}
+      <rect x="3" y="8" width="6" height="1" fill={color} opacity="0.6" />
+      <rect x="3" y="10" width="8" height="1" fill={color} opacity="0.6" />
+      <rect x="3" y="12" width="5" height="1" fill={color} opacity="0.6" />
+      {/* Image placeholder */}
+      <rect x="10" y="8" width="3" height="3" fill={color} opacity="0.4" />
+    </svg>
+  );
+}

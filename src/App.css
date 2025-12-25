@@ -1334,3 +1334,1473 @@
 .unlock-notice h3 svg {
   margin-right: 0.5rem;
 }
+
+/* ============================================
+   FINNISH CASES GAME STYLES
+   ============================================ */
+
+/* Case Category Selector */
+.case-selector {
+  width: 100%;
+  max-width: 600px;
+  margin-bottom: 1.5rem;
+}
+
+.case-selector h3 {
+  font-size: 1.25rem;
+  color: var(--highlight-amber);
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.case-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.case-category-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 1rem;
+  border: 2px solid var(--border-color);
+  background-color: var(--bg-secondary);
+  opacity: 0.65;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.case-category-btn:hover {
+  opacity: 0.85;
+  border-color: var(--case-color, var(--border-color));
+}
+
+.case-category-btn.selected {
+  opacity: 1;
+  border-color: var(--case-color, var(--highlight-amber));
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.case-category-btn.completed {
+  border-left: 4px solid var(--accent-green);
+}
+
+.case-category-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.case-category-icon {
+  color: var(--case-color, var(--highlight-amber));
+}
+
+.case-category-btn.selected .case-category-icon {
+  color: var(--case-color, var(--highlight-amber));
+}
+
+.check-badges {
+  display: flex;
+  gap: 2px;
+}
+
+.case-category-name {
+  font-size: 1.15rem;
+  color: var(--text-primary);
+  font-weight: bold;
+}
+
+.case-category-finnish {
+  font-size: 0.85rem;
+  color: var(--case-color, var(--text-secondary));
+  font-style: italic;
+}
+
+.case-category-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.case-category-cases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.3rem;
+}
+
+.case-tag {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-secondary);
+  text-transform: lowercase;
+}
+
+/* Case Group Sections */
+.case-group-section {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.case-group-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.case-section-title {
+  font-size: 1.1rem;
+  color: var(--highlight-amber);
+  margin-bottom: 0.25rem;
+  text-align: left;
+}
+
+.case-section-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+  text-align: left;
+}
+
+/* Individual Cases Grid - Compact */
+.case-category-grid.individual {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.case-category-btn.compact {
+  padding: 0.6rem 0.75rem;
+  gap: 0.2rem;
+  position: relative;
+}
+
+.case-category-btn.compact .case-category-name {
+  font-size: 0.95rem;
+}
+
+.case-category-btn.compact .case-category-desc {
+  font-size: 0.75rem;
+}
+
+.case-category-btn.compact .case-check {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+}
+
+/* Movement-Based Grid */
+.case-category-grid.movement {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+}
+
+.case-category-btn.movement {
+  padding: 0.75rem;
+  gap: 0.3rem;
+}
+
+.case-category-btn.movement .case-category-header {
+  margin-bottom: 0.2rem;
+}
+
+.case-category-btn.movement .case-category-name {
+  font-size: 1rem;
+}
+
+.case-category-btn.movement .case-category-finnish {
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+/* Broad Groups Grid */
+.case-category-grid.broad {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.6rem;
+}
+
+.case-category-btn.broad {
+  padding: 0.75rem;
+  gap: 0.3rem;
+}
+
+/* Responsive for case grids */
+@media (max-width: 500px) {
+  .case-category-grid.individual {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .case-category-grid.movement {
+    grid-template-columns: 1fr;
+  }
+  
+  .case-category-grid.broad {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Case Reference Card */
+.case-reference-card {
+  width: 100%;
+  max-width: 600px;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+}
+
+.case-reference-card h4 {
+  font-size: 1rem;
+  color: var(--highlight-amber);
+  margin-bottom: 0.75rem;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.case-reference-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.case-reference-group {
+  padding: 0.75rem;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+}
+
+.case-reference-group.location {
+  border-left: 3px solid #4a9eff;
+}
+
+.case-reference-group.surface {
+  border-left: 3px solid #ff7b4a;
+}
+
+.reference-group-title {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+}
+
+.reference-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+  font-size: 0.8rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.reference-item:last-child {
+  border-bottom: none;
+}
+
+.reference-item .case-name {
+  color: var(--text-primary);
+}
+
+.reference-item .case-ending {
+  color: var(--highlight-amber);
+  font-weight: bold;
+}
+
+.reference-item .case-meaning {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Cases Mode Buttons */
+.cases-modes {
+  margin-top: 1rem;
+}
+
+.mode-button.cases {
+  border-color: #9b59b6;
+}
+
+.mode-button.cases:hover {
+  background-color: rgba(155, 89, 182, 0.15);
+  border-color: #b07cc6;
+}
+
+.mode-button.cases .mode-name {
+  color: #b07cc6;
+}
+
+/* Cases Game Screen */
+
+.cases-stats .case-category-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.case-category-indicator .stat-value {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  text-transform: capitalize;
+}
+
+/* Cases Prompt Box */
+.cases-prompt-box {
+  background-color: var(--bg-secondary);
+  border: 3px solid var(--border-color);
+  padding: 1.5rem 2rem;
+  width: 100%;
+  max-width: 560px;
+  text-align: center;
+}
+
+.case-english-context {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.75rem;
+  padding: 1rem;
+  background-color: rgba(74, 158, 255, 0.1);
+  border: 2px solid #4a9eff;
+  transition: opacity 0.2s ease;
+}
+
+.case-english-context.hidden {
+  opacity: 0.5;
+  background-color: rgba(74, 158, 255, 0.05);
+  border-color: rgba(74, 158, 255, 0.3);
+}
+
+.case-english-context.hidden .english-text {
+  filter: blur(3px);
+  user-select: none;
+}
+
+.case-english-context.visible {
+  opacity: 1;
+}
+
+.english-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.english-text {
+  font-size: 1.4rem;
+  color: #4a9eff;
+  font-weight: 500;
+}
+
+.case-finnish-sentence {
+  margin-bottom: 0.75rem;
+}
+
+/* Base word hint for fill-blank mode */
+.case-base-word-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: rgba(240, 198, 116, 0.15);
+  border: 2px solid rgba(240, 198, 116, 0.4);
+  margin-bottom: 1rem;
+}
+
+.case-base-word-hint .hint-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.case-base-word-hint .hint-word {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: var(--highlight-amber);
+}
+
+.case-sentence-fill {
+  font-size: 1.8rem;
+  line-height: 2;
+  color: var(--text-primary);
+}
+
+.case-sentence-part {
+  color: var(--text-secondary);
+}
+
+.case-sentence-blank {
+  display: inline-block;
+  min-width: 180px;
+  color: var(--highlight-amber);
+  font-weight: bold;
+  border-bottom: 3px solid var(--highlight-amber);
+  margin: 0 0.25rem;
+  padding: 0 0.5rem;
+}
+
+.case-hint {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.5rem 1rem;
+  background-color: rgba(240, 198, 116, 0.1);
+  border: 1px dashed var(--highlight-amber);
+}
+
+.hint-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.hint-text {
+  font-size: 1.1rem;
+  color: var(--highlight-amber);
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+/* Cases Identify Mode */
+.case-finnish-full {
+  margin-bottom: 1.5rem;
+  padding: 1.25rem;
+  background-color: var(--bg-primary);
+  border: 2px solid var(--border-color);
+}
+
+.case-finnish-full .finnish-text {
+  font-size: 1.8rem;
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.case-word-highlight {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background-color: rgba(155, 89, 182, 0.15);
+  border: 2px solid #9b59b6;
+}
+
+.word-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.word-highlight {
+  font-size: 1.5rem;
+  color: #b07cc6;
+  font-weight: bold;
+}
+
+.word-base {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Case Options Grid (for Identify mode) */
+.case-options-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  padding: 0.5rem;
+}
+
+.case-option-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 1rem 0.75rem;
+  background-color: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.case-option-btn:hover:not(:disabled) {
+  border-color: var(--highlight-amber);
+  background-color: rgba(240, 198, 116, 0.1);
+}
+
+.case-option-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.case-option-btn.correct-highlight {
+  border-color: var(--accent-green);
+  background-color: rgba(76, 175, 80, 0.2);
+}
+
+.case-option-name {
+  font-size: 1rem;
+  font-weight: bold;
+  text-transform: capitalize;
+}
+
+.case-option-ending {
+  font-size: 0.85rem;
+  color: var(--highlight-amber);
+}
+
+/* Cases Feedback */
+.feedback.detailed .case-feedback {
+  margin-top: 1.5rem;
+}
+
+.case-info-card {
+  padding: 1rem;
+  background-color: rgba(155, 89, 182, 0.1);
+  border: 2px solid #9b59b6;
+}
+
+.case-info-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.case-name-big {
+  font-size: 1.5rem;
+  color: #b07cc6;
+  font-weight: bold;
+  text-transform: capitalize;
+}
+
+.case-finnish-name {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.case-info-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.case-detail {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.detail-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  min-width: 70px;
+}
+
+.detail-value {
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.detail-value.ending {
+  color: var(--highlight-amber);
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.detail-value.question {
+  color: #4a9eff;
+  font-style: italic;
+}
+
+.case-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.case-example {
+  font-size: 0.95rem;
+  padding: 0.35rem 0.75rem;
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-primary);
+}
+
+/* Results screen for cases */
+.results-mode.cases {
+  color: #b07cc6;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.results-categories {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.category-badge {
+  font-size: 1rem;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid #9b59b6;
+  background-color: rgba(155, 89, 182, 0.15);
+  color: #b07cc6;
+  text-transform: capitalize;
+}
+
+.hint-notice.success {
+  border-color: var(--accent-green);
+  background-color: rgba(76, 175, 80, 0.1);
+  color: var(--accent-green);
+}
+
+/* ============================================
+   PASSAGE MODE STYLES
+   ============================================ */
+
+/* Passage mode button in menu */
+.mode-button.cases.passage {
+  border-color: rgba(155, 89, 182, 0.6);
+  background: linear-gradient(135deg, rgba(155, 89, 182, 0.05) 0%, rgba(142, 68, 173, 0.1) 100%);
+}
+
+.mode-button.cases.passage:hover {
+  border-color: #9b59b6;
+  background: linear-gradient(135deg, rgba(155, 89, 182, 0.1) 0%, rgba(142, 68, 173, 0.15) 100%);
+}
+
+.mode-button.cases.passage:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Passage game screen */
+.game-screen.passage-mode {
+  background: linear-gradient(180deg, 
+    var(--bg-primary) 0%, 
+    rgba(155, 89, 182, 0.03) 100%);
+}
+
+.passage-stats {
+  border-color: rgba(155, 89, 182, 0.3);
+}
+
+/* Passage container */
+.passage-container {
+  width: 100%;
+  max-width: 600px;
+  margin: 1rem auto;
+  padding: 1.5rem;
+  background-color: var(--bg-secondary);
+  border: 2px solid rgba(155, 89, 182, 0.3);
+}
+
+.passage-header {
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.passage-title {
+  font-size: 1.4rem;
+  color: var(--highlight-amber);
+  margin: 0 0 0.25rem 0;
+}
+
+.passage-title-english {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Passage text with blanks */
+.passage-text {
+  font-size: 1.2rem;
+  line-height: 2;
+  color: var(--text-primary);
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  background-color: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color);
+}
+
+.passage-blank {
+  display: inline-block;
+  min-width: 100px;
+  border-bottom: 2px dashed var(--text-muted);
+  color: var(--text-muted);
+  text-align: center;
+  margin: 0 0.25rem;
+}
+
+.passage-current-blank {
+  display: inline-block;
+  min-width: 100px;
+  border-bottom: 3px solid var(--highlight-amber);
+  color: var(--highlight-amber);
+  text-align: center;
+  margin: 0 0.25rem;
+  animation: pulse-blank 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-blank {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.passage-filled-blank {
+  display: inline;
+  color: var(--accent-green);
+  font-weight: bold;
+  border-bottom: 2px solid var(--accent-green);
+  padding: 0 0.25rem;
+  margin: 0 0.15rem;
+}
+
+/* Translation section */
+.passage-translation {
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+  transition: opacity 0.2s ease;
+}
+
+.passage-translation.hidden {
+  opacity: 0.5;
+}
+
+.passage-translation.hidden p {
+  filter: blur(3px);
+  user-select: none;
+}
+
+.passage-translation.visible {
+  opacity: 1;
+}
+
+.passage-translation .translation-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.passage-translation p {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.6;
+  font-style: italic;
+}
+
+/* Reveal translation button */
+.reveal-translation-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  background-color: rgba(74, 158, 255, 0.15);
+  border: 2px dashed rgba(74, 158, 255, 0.4);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-bottom: 1rem;
+  font-family: inherit;
+}
+
+.reveal-translation-btn:hover {
+  background-color: rgba(74, 158, 255, 0.25);
+  border-color: rgba(74, 158, 255, 0.6);
+  color: var(--text-primary);
+}
+
+.reveal-translation-btn:active {
+  background-color: rgba(74, 158, 255, 0.4);
+  border-style: solid;
+  border-color: #4a9eff;
+  color: #4a9eff;
+  transform: scale(0.98);
+}
+
+/* Input section for passages */
+.passage-input-section {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.passage-current-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background-color: rgba(155, 89, 182, 0.1);
+  border: 1px solid rgba(155, 89, 182, 0.3);
+}
+
+.blank-number {
+  font-size: 0.9rem;
+  color: #b07cc6;
+  font-weight: bold;
+}
+
+.blank-base {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.blank-base strong {
+  color: var(--highlight-amber);
+}
+
+/* Passage feedback */
+.passage-correct-notice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 1rem;
+  color: var(--highlight-amber);
+}
+
+/* Results screen passage mode */
+.results-mode.passage {
+  color: #b07cc6;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.hint-notice.success.passage {
+  border-color: var(--accent-green);
+  background-color: rgba(76, 175, 80, 0.1);
+  color: var(--accent-green);
+}
+
+/* Responsive for passage mode */
+@media (max-width: 600px) {
+  .passage-container {
+    padding: 1rem;
+    margin: 0.5rem;
+  }
+  
+  .passage-title {
+    font-size: 1.2rem;
+  }
+  
+  .passage-text {
+    font-size: 1.05rem;
+    line-height: 1.9;
+    padding: 0.75rem;
+  }
+  
+  .passage-blank,
+  .passage-current-blank {
+    min-width: 80px;
+  }
+  
+  .passage-current-info {
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
+  }
+}
+
+/* Responsive for cases */
+@media (max-width: 600px) {
+  .case-reference-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .case-category-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .case-options-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .case-sentence-fill {
+    font-size: 1.4rem;
+  }
+  
+  .case-sentence-blank {
+    min-width: 120px;
+  }
+  
+  .case-finnish-full .finnish-text {
+    font-size: 1.4rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .case-options-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .case-option-btn {
+    padding: 0.75rem 0.5rem;
+  }
+  
+  .case-option-name {
+    font-size: 0.9rem;
+  }
+}
+
+/* ====================== */
+/* READING MODE STYLES    */
+/* ====================== */
+
+/* Reading Menu Section */
+.reading-sections-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  width: 100%;
+  max-width: 500px;
+}
+
+.reading-menu-section {
+  width: 100%;
+}
+
+.reading-menu-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.reading-menu-level {
+  background: linear-gradient(135deg, var(--accent-teal), #4db6c4);
+  color: var(--bg-primary);
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.reading-menu-label {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+/* Yle News Section Styling */
+.yle-news-section {
+  border-top: 1px solid var(--border-color);
+  padding-top: 1rem;
+}
+
+.yle-news-header .yle-news-badge {
+  background: linear-gradient(135deg, #00a8e8, #0077b6);
+  letter-spacing: 2px;
+}
+
+.yle-news-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: -0.5rem 0 1rem 0;
+  font-style: italic;
+}
+
+.reading-article-btn.yle-news-btn {
+  border-color: rgba(0, 168, 232, 0.3);
+  position: relative;
+}
+
+.reading-article-btn.yle-news-btn:hover {
+  border-color: #00a8e8;
+}
+
+.reading-article-btn.yle-news-btn .rab-topic {
+  color: #00a8e8;
+}
+
+.rab-level-indicator {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: var(--bg-dark);
+  color: var(--text-secondary);
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.6rem;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+
+.reading-article-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.reading-article-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.reading-article-btn:hover {
+  border-color: var(--accent-teal);
+  background: var(--bg-dark);
+  transform: translateX(4px);
+}
+
+.rab-topic {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent-teal);
+  font-weight: 600;
+}
+
+.rab-title {
+  font-size: 1.15rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.rab-meta {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+/* Reading Game Screen */
+.reading-screen {
+  padding: 0;
+}
+
+.reading-screen .game-header.reading-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 0;
+}
+
+.reading-header .quit-btn {
+  padding: 0.4rem 0.6rem;
+  font-size: 1rem;
+}
+
+.reading-progress-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-dark);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.reading-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-teal), var(--accent-green));
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.reading-score {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  min-width: 40px;
+  text-align: right;
+}
+
+.reading-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Article Card */
+.reading-article-card {
+  background: var(--bg-secondary);
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.reading-article-badges {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.reading-level-badge {
+  background: var(--accent-teal);
+  color: var(--bg-primary);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: bold;
+}
+
+.reading-topic-badge {
+  background: var(--bg-dark);
+  color: var(--text-secondary);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.reading-yle-badge {
+  background: linear-gradient(135deg, #00a8e8, #0077b6);
+  color: white;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+/* Yle News Article Styling */
+.reading-article-card.yle-news-article {
+  border-left: 3px solid #00a8e8;
+}
+
+.reading-article-card.yle-news-article .reading-article-title {
+  color: var(--text-primary);
+}
+
+.reading-article-title {
+  font-size: 1.6rem;
+  color: var(--highlight-amber);
+  margin: 0 0 1rem 0;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.reading-article-body {
+  font-size: 1.1rem;
+  line-height: 2;
+  color: var(--text-primary);
+}
+
+.reading-article-body p {
+  margin-bottom: 1rem;
+}
+
+.reading-article-body p:last-child {
+  margin-bottom: 0;
+}
+
+/* Vocabulary Helper */
+.reading-vocab-helper {
+  margin-top: 1.25rem;
+  border-top: 1px solid var(--border-color);
+  padding-top: 1rem;
+}
+
+.reading-vocab-toggle {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  padding: 0.25rem 0;
+  transition: color 0.15s ease;
+}
+
+.reading-vocab-toggle:hover {
+  color: var(--accent-teal);
+}
+
+.vocab-toggle-icon {
+  font-size: 0.7rem;
+  transition: transform 0.2s ease;
+}
+
+.reading-vocab-toggle.expanded .vocab-toggle-icon {
+  transform: rotate(0deg);
+}
+
+.reading-vocab-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.reading-vocab-item {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-dark);
+  border-radius: 6px;
+}
+
+.rv-finnish {
+  color: var(--highlight-amber);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.rv-english {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+/* Questions Section */
+.reading-questions-section {
+  padding: 1.5rem;
+  background: var(--bg-primary);
+}
+
+.reading-questions-title {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin: 0 0 1rem 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 500;
+}
+
+.reading-question {
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.reading-question.answered-correct {
+  border-color: var(--accent-green);
+  background: rgba(76, 175, 80, 0.08);
+}
+
+.reading-question.answered-wrong {
+  border-color: var(--accent-red);
+  background: rgba(204, 102, 102, 0.08);
+}
+
+.rq-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.rq-number {
+  background: var(--accent-teal);
+  color: var(--bg-primary);
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.rq-text {
+  font-size: 1.05rem;
+  color: var(--text-primary);
+  flex: 1;
+  line-height: 1.4;
+}
+
+.rq-status {
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+.rq-status.correct {
+  color: var(--accent-green);
+}
+
+.rq-status.wrong {
+  color: var(--accent-red);
+}
+
+.rq-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.rq-option {
+  background: var(--bg-dark);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.rq-option:hover:not(:disabled) {
+  border-color: var(--accent-teal);
+  background: var(--bg-secondary);
+}
+
+.rq-option.selected {
+  border-color: var(--accent-teal);
+  background: rgba(102, 194, 205, 0.15);
+}
+
+.rq-option.correct {
+  border-color: var(--accent-green);
+  background: rgba(76, 175, 80, 0.2);
+  color: var(--accent-green);
+  font-weight: 500;
+}
+
+.rq-option.wrong {
+  border-color: var(--accent-red);
+  background: rgba(204, 102, 102, 0.2);
+  color: var(--accent-red);
+}
+
+.rq-option:disabled {
+  cursor: default;
+}
+
+/* Complete Section */
+.reading-complete-section {
+  padding: 1.25rem 1.5rem;
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-dark) 100%);
+  border-top: 2px solid var(--highlight-amber);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.reading-final-score {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.rfs-label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.rfs-value {
+  color: var(--highlight-amber);
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.rfs-percent {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.reading-finish-btn {
+  background: var(--highlight-amber);
+  color: var(--bg-primary);
+  border: none;
+  padding: 0.65rem 1.25rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.reading-finish-btn:hover {
+  background: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+/* Results Screen Reading Mode */
+.results-mode.reading {
+  background: linear-gradient(135deg, var(--accent-teal), #4a9ea8);
+}
+
+.results-article {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+
+.results-article .article-badge {
+  background: var(--highlight-amber);
+  color: var(--bg-primary);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.results-article .article-title-result {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  font-style: italic;
+}
+
+/* Responsive for Reading */
+@media (max-width: 600px) {
+  .reading-article-title {
+    font-size: 1.3rem;
+  }
+  
+  .reading-article-body {
+    font-size: 1rem;
+    line-height: 1.9;
+  }
+  
+  .reading-vocab-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .rq-text {
+    font-size: 1rem;
+  }
+  
+  .reading-complete-section {
+    flex-direction: column;
+    text-align: center;
+  }
+}

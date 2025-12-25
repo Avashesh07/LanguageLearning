@@ -6,7 +6,7 @@ import { GameScreen } from './components/GameScreen';
 import { ResultsScreen } from './components/ResultsScreen';
 
 function App() {
-  const [lastActiveTab, setLastActiveTab] = useState<'verbs' | 'vocabulary'>('verbs');
+  const [lastActiveTab, setLastActiveTab] = useState<'verbs' | 'vocabulary' | 'cases' | 'reading'>('verbs');
   const {
     state,
     selectedLevels,
@@ -28,17 +28,34 @@ function App() {
     startVocabularySession,
     getTavoiteWordCount,
     allTavoites,
+    // Cases
+    selectedCaseCategories,
+    setSelectedCaseCategories,
+    startCasesSession,
+    getCasesSentenceCount,
+    caseGroups,
+    // Reading
+    startReadingSession,
+    submitReadingAnswer,
+    toggleReadingVocabulary,
+    finishReading,
   } = useGameState();
 
   const isSessionComplete = state.session?.isComplete;
   const isGradationComplete = state.gradationSession?.isComplete;
   const isVocabularyComplete = state.vocabularySession?.isComplete;
-  const isComplete = isSessionComplete || isGradationComplete || isVocabularyComplete;
+  const isCasesComplete = state.casesSession?.isComplete;
+  const isReadingComplete = state.readingSession?.isComplete;
+  const isComplete = isSessionComplete || isGradationComplete || isVocabularyComplete || isCasesComplete || isReadingComplete;
 
   // Track which tab should be active based on current mode
   useEffect(() => {
     if (state.mode === 'vocabulary-recall' || state.mode === 'vocabulary-active-recall') {
       setLastActiveTab('vocabulary');
+    } else if (state.mode === 'cases-fill-blank') {
+      setLastActiveTab('cases');
+    } else if (state.mode === 'reading') {
+      setLastActiveTab('reading');
     } else if (state.mode === 'menu') {
       // Keep the last active tab when returning to menu
       // (don't change it)
@@ -51,6 +68,11 @@ function App() {
   const handlePlayAgain = () => {
     if (state.mode === 'vocabulary-recall' || state.mode === 'vocabulary-active-recall') {
       startVocabularySession(state.mode, selectedTavoites);
+    } else if (state.mode === 'cases-fill-blank') {
+      startCasesSession(selectedCaseCategories);
+    } else if (state.mode === 'reading') {
+      // For reading, return to menu to select another article
+      returnToMenu();
     } else {
       startSession(state.mode, selectedLevels);
     }
@@ -76,6 +98,12 @@ function App() {
           onStartVocabularySession={startVocabularySession}
           getTavoiteWordCount={getTavoiteWordCount}
           allTavoites={allTavoites}
+          selectedCaseCategories={selectedCaseCategories}
+          onSelectCaseCategories={setSelectedCaseCategories}
+          onStartCasesSession={startCasesSession}
+          getCasesSentenceCount={getCasesSentenceCount}
+          caseGroups={caseGroups}
+          onStartReading={startReadingSession}
           initialTab={lastActiveTab}
           onTabChange={setLastActiveTab}
         />
@@ -90,6 +118,8 @@ function App() {
           formatTime={formatTime}
           gradationSession={state.gradationSession}
           vocabularySession={state.vocabularySession}
+          casesSession={state.casesSession}
+          readingSession={state.readingSession}
         />
       ) : (
         <GameScreen
@@ -99,6 +129,9 @@ function App() {
           onClearFeedback={clearFeedback}
           onQuit={returnToMenu}
           formatTime={formatTime}
+          onSubmitReadingAnswer={submitReadingAnswer}
+          onToggleReadingVocabulary={toggleReadingVocabulary}
+          onFinishReading={finishReading}
         />
       )}
     </div>

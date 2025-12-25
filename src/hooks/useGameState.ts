@@ -14,11 +14,17 @@ import type {
   ConsonantGradationSessionState,
   VocabularySessionState,
   VocabularyWordState,
+  CasesSessionState,
+  CaseSentenceState,
+  CaseCategory,
+  ReadingSessionState,
 } from '../types';
+import { getArticleById, type YleArticle } from '../data/yleArticles';
 import { getVerbsForLevels, verbsByLevel, verbTypeInfo, negativeInfo, getRandomSentence, getRandomImperfectSentence } from '../data/verbs';
 import { getAllRules, createPracticeQuestions, type GradationRule } from '../data/consonantGradation';
 import { saveToCSV, loadFromCSV } from '../utils/csvDatabase';
 import { getWordsForTavoites, getAllTavoites, getWordCountForTavoites } from '../data/tavoiteVocabulary';
+import { getSentencesByCategory, CASES, CASE_GROUPS, getCaseEndingExplanation, type CaseSentence } from '../data/finnishCases';
 
 const STORAGE_KEY = 'finnish-verb-arena-v4';
 
@@ -27,7 +33,12 @@ const PERSONS: Person[] = ['minä', 'sinä', 'hän', 'me', 'te', 'he'];
 type GameAction =
   | { type: 'START_SESSION'; mode: GameMode; levels: VerbLevel[] }
   | { type: 'START_VOCABULARY_SESSION'; mode: 'vocabulary-recall' | 'vocabulary-active-recall'; tavoites: number[] }
+  | { type: 'START_CASES_SESSION'; categories: CaseCategory[] }
+  | { type: 'START_READING_SESSION'; article: YleArticle }
   | { type: 'SUBMIT_ANSWER'; answer: string }
+  | { type: 'SUBMIT_READING_ANSWER'; questionIndex: number; answerIndex: number }
+  | { type: 'TOGGLE_READING_VOCABULARY' }
+  | { type: 'FINISH_READING' }
   | { type: 'NEXT_VERB' }
   | { type: 'CLEAR_FEEDBACK' }
   | { type: 'RETURN_TO_MENU' }
@@ -136,6 +147,9 @@ function getInitialState(): GameState {
     questions: [],
     vocabularySession: undefined,
     currentVocabularyWord: undefined,
+    casesSession: undefined,
+    currentCaseSentence: undefined,
+    readingSession: undefined,
   };
 }
 
@@ -267,6 +281,84 @@ function getVocabularyExpectedAnswer(mode: 'vocabulary-recall' | 'vocabulary-act
   } else {
     return word.finnish;
   }
+}
+
+// Cases Session Helpers
+function createCasesSession(categories: CaseCategory[]): CasesSessionState {
+  // Get sentences based on selected categories
+  let sentences: CaseSentence[] = [];
+  
+  for (const category of categories) {
+    sentences = [...sentences, ...getSentencesByCategory(category)];
+  }
+  
+  // Remove duplicates by id
+  const uniqueSentences = Array.from(new Map(sentences.map(s => [s.id, s])).values());
+  
+  // Shuffle and convert to state format
+  const shuffledSentences: CaseSentenceState[] = [...uniqueSentences]
+    .sort(() => Math.random() - 0.5)
+    .map((s) => ({
+      id: s.id,
+      finnish: s.finnish,
+      english: s.english,
+      caseUsed: s.caseUsed,
+      wordInCase: s.wordInCase,
+      baseWord: s.baseWord,
+      category: s.category,
+      sentenceWithBlank: s.sentenceWithBlank,
+      hint: s.hint,
+      correctCount: 0,
+      wrongCount: 0,
+      eliminated: false,
+    }));
+
+  return {
+    mode: 'cases-fill-blank',
+    selectedCategories: categories,
+    sentences: shuffledSentences,
+    currentSentenceIndex: 0,
+    startTime: Date.now(),
+    endTime: null,
+    wrongCount: 0,
+    isComplete: false,
+  };
+}
+
+function getNextActiveSentenceIndex(session: CasesSessionState, startFrom: number): number {
+  const { sentences } = session;
+  
+  for (let i = 0; i < sentences.length; i++) {
+    const idx = (startFrom + i) % sentences.length;
+    if (!sentences[idx].eliminated) {
+      return idx;
+    }
+  }
+  
+  return -1;
+}
+
+function getActiveSentenceCount(session: CasesSessionState): number {
+  return session.sentences.filter((s) => !s.eliminated).length;
+}
+
+function checkCasesAnswer(sentence: CaseSentenceState, answer: string): boolean {
+  const normalizedAnswer = answer.trim().toLowerCase();
+  // User needs to fill in the correct word in the case form
+  return normalizedAnswer === sentence.wordInCase.toLowerCase();
+}
+
+function getCasesExpectedAnswer(sentence: CaseSentenceState): string {
+  return sentence.wordInCase;
+}
+
+function getCaseFeedbackInfo(sentence: CaseSentenceState): { caseInfo: string; rule: string; examples: string[] } {
+  const caseInfo = CASES[sentence.caseUsed];
+  return {
+    caseInfo: `${caseInfo.finnishName} (${caseInfo.name}) - ${caseInfo.meaning}`,
+    rule: getCaseEndingExplanation(sentence.caseUsed),
+    examples: caseInfo.examples,
+  };
 }
 
 function checkAnswer(mode: GameMode, verb: ReturnType<typeof getVerbsForLevels>[0], answer: string, person?: Person, polarity?: Polarity): boolean {
@@ -494,6 +586,139 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           finnish: firstWord.finnish,
           english: firstWord.english,
         } : undefined,
+        casesSession: undefined,
+        currentCaseSentence: undefined,
+      };
+    }
+
+    case 'START_CASES_SESSION': {
+      const casesSession = createCasesSession(action.categories);
+      const firstSentenceIndex = getNextActiveSentenceIndex(casesSession, 0);
+      const firstSentence = casesSession.sentences[firstSentenceIndex];
+      
+      return {
+        ...state,
+        mode: 'cases-fill-blank',
+        session: null,
+        currentVerb: null,
+        feedback: null,
+        currentPerson: undefined,
+        currentPolarity: undefined,
+        currentSentence: undefined,
+        currentGradationQuestion: undefined,
+        gradationSession: undefined,
+        vocabularySession: undefined,
+        currentVocabularyWord: undefined,
+        casesSession: {
+          ...casesSession,
+          currentSentenceIndex: firstSentenceIndex,
+        },
+        currentCaseSentence: firstSentence ? {
+          id: firstSentence.id,
+          finnish: firstSentence.finnish,
+          english: firstSentence.english,
+          caseUsed: firstSentence.caseUsed,
+          wordInCase: firstSentence.wordInCase,
+          baseWord: firstSentence.baseWord,
+          sentenceWithBlank: firstSentence.sentenceWithBlank,
+          hint: firstSentence.hint,
+        } : undefined,
+        readingSession: undefined,
+      };
+    }
+
+    case 'START_READING_SESSION': {
+      const article = action.article;
+      const readingSession: ReadingSessionState = {
+        mode: 'reading',
+        articleId: article.id,
+        questions: article.questions.map(q => ({
+          questionId: q.id,
+          answered: false,
+          selectedAnswer: null,
+          isCorrect: null,
+        })),
+        currentQuestionIndex: 0,
+        showingVocabulary: false,
+        showingTranslation: false,
+        startTime: Date.now(),
+        endTime: null,
+        wrongCount: 0,
+        isComplete: false,
+      };
+
+      return {
+        ...state,
+        mode: 'reading',
+        session: null,
+        currentVerb: null,
+        feedback: null,
+        currentPerson: undefined,
+        currentPolarity: undefined,
+        currentSentence: undefined,
+        currentGradationQuestion: undefined,
+        gradationSession: undefined,
+        vocabularySession: undefined,
+        currentVocabularyWord: undefined,
+        casesSession: undefined,
+        currentCaseSentence: undefined,
+        readingSession,
+      };
+    }
+
+    case 'SUBMIT_READING_ANSWER': {
+      if (!state.readingSession) return state;
+      
+      const { questionIndex, answerIndex } = action;
+      const article = getArticleById(state.readingSession.articleId);
+      if (!article) return state;
+      
+      const question = article.questions[questionIndex];
+      const isCorrect = question.correctAnswer === answerIndex;
+      
+      const newQuestions = [...state.readingSession.questions];
+      newQuestions[questionIndex] = {
+        ...newQuestions[questionIndex],
+        answered: true,
+        selectedAnswer: answerIndex,
+        isCorrect,
+      };
+      
+      const newWrongCount = state.readingSession.wrongCount + (isCorrect ? 0 : 1);
+      const allAnswered = newQuestions.every(q => q.answered);
+      
+      return {
+        ...state,
+        readingSession: {
+          ...state.readingSession,
+          questions: newQuestions,
+          wrongCount: newWrongCount,
+          isComplete: allAnswered,
+          endTime: allAnswered ? Date.now() : null,
+        },
+      };
+    }
+
+    case 'TOGGLE_READING_VOCABULARY': {
+      if (!state.readingSession) return state;
+      return {
+        ...state,
+        readingSession: {
+          ...state.readingSession,
+          showingVocabulary: !state.readingSession.showingVocabulary,
+        },
+      };
+    }
+
+    case 'FINISH_READING': {
+      if (!state.readingSession) return state;
+      return {
+        ...state,
+        readingSession: {
+          ...state.readingSession,
+          isComplete: true,
+          endTime: state.readingSession.endTime || Date.now(),
+        },
       };
     }
 
@@ -696,6 +921,101 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           ...state,
           player: newPlayer,
           vocabularySession: newVocabSession,
+          feedback,
+        };
+      }
+      
+      // Handle cases mode
+      if (state.mode === 'cases-fill-blank') {
+        if (!state.casesSession || !state.currentCaseSentence) return state;
+        
+        const casesSession = state.casesSession;
+        const currentSentenceState = casesSession.sentences[casesSession.currentSentenceIndex];
+        
+        const isCorrect = checkCasesAnswer(currentSentenceState, action.answer);
+        const newWrongForSentence = currentSentenceState.wrongCount + (isCorrect ? 0 : 1);
+        const shouldEliminate = isCorrect;
+        
+        const newSentenceState: CaseSentenceState = {
+          ...currentSentenceState,
+          correctCount: isCorrect ? currentSentenceState.correctCount + 1 : currentSentenceState.correctCount,
+          wrongCount: newWrongForSentence,
+          eliminated: shouldEliminate,
+        };
+        
+        const newSentences = [...casesSession.sentences];
+        newSentences[casesSession.currentSentenceIndex] = newSentenceState;
+        
+        const newWrongCount = casesSession.wrongCount + (isCorrect ? 0 : 1);
+        const newCasesSession: CasesSessionState = {
+          ...casesSession,
+          sentences: newSentences,
+          wrongCount: newWrongCount,
+        };
+        
+        const activeCount = getActiveSentenceCount(newCasesSession);
+        const isComplete = activeCount === 0;
+        
+        let newPlayer = state.player;
+        
+        if (isComplete) {
+          newCasesSession.isComplete = true;
+          newCasesSession.endTime = Date.now();
+          
+          // Save progress if completed with 0 mistakes
+          if (newCasesSession.wrongCount === 0) {
+            const timeMs = newCasesSession.endTime - (newCasesSession.startTime || newCasesSession.endTime);
+            const currentDate = new Date().toISOString().split('T')[0];
+            
+            const existingProgress = state.player.casesProgress || [];
+            const newCasesProgress = [...existingProgress];
+            
+            for (const category of newCasesSession.selectedCategories) {
+              const existingIdx = newCasesProgress.findIndex(cp => cp.category === category);
+              
+              if (existingIdx >= 0) {
+                const existing = newCasesProgress[existingIdx];
+                const updates: any = { fillBlankCompleted: true };
+                
+                if (!existing.bestTimeMs || timeMs < existing.bestTimeMs) {
+                  updates.bestTimeMs = timeMs;
+                  updates.bestDate = currentDate;
+                }
+                
+                newCasesProgress[existingIdx] = { ...existing, ...updates };
+              } else {
+                newCasesProgress.push({
+                  category,
+                  fillBlankCompleted: true,
+                  bestTimeMs: timeMs,
+                  bestDate: currentDate,
+                });
+              }
+            }
+            
+            newPlayer = {
+              ...state.player,
+              casesProgress: newCasesProgress,
+            };
+          }
+        }
+        
+        // Build feedback with case-specific learning info
+        const correctAnswer = getCasesExpectedAnswer(currentSentenceState);
+        const caseInfo = getCaseFeedbackInfo(currentSentenceState);
+        
+        const feedback: FeedbackData = {
+          isCorrect,
+          userAnswer: action.answer,
+          correctAnswer,
+          rule: !isCorrect ? caseInfo.rule : undefined,
+          verbTypeInfo: !isCorrect ? caseInfo.caseInfo : undefined,
+        };
+        
+        return {
+          ...state,
+          player: newPlayer,
+          casesSession: newCasesSession,
           feedback,
         };
       }
@@ -955,6 +1275,44 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
       
+      // Handle cases mode
+      if (state.mode === 'cases-fill-blank') {
+        if (!state.casesSession) return state;
+        
+        const nextIndex = getNextActiveSentenceIndex(
+          state.casesSession,
+          state.casesSession.currentSentenceIndex + 1
+        );
+        
+        if (nextIndex === -1 || state.casesSession.isComplete) {
+          return {
+            ...state,
+            feedback: null,
+          };
+        }
+        
+        const nextSentence = state.casesSession.sentences[nextIndex];
+        
+        return {
+          ...state,
+          casesSession: {
+            ...state.casesSession,
+            currentSentenceIndex: nextIndex,
+          },
+          currentCaseSentence: {
+            id: nextSentence.id,
+            finnish: nextSentence.finnish,
+            english: nextSentence.english,
+            caseUsed: nextSentence.caseUsed,
+            wordInCase: nextSentence.wordInCase,
+            baseWord: nextSentence.baseWord,
+            sentenceWithBlank: nextSentence.sentenceWithBlank,
+            hint: nextSentence.hint,
+          },
+          feedback: null,
+        };
+      }
+      
       // Regular verb modes
       if (!state.session) return state;
 
@@ -1021,6 +1379,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         gradationSession: undefined,
         vocabularySession: undefined,
         currentVocabularyWord: undefined,
+        casesSession: undefined,
+        currentCaseSentence: undefined,
+        readingSession: undefined,
       };
     }
 
@@ -1153,6 +1514,45 @@ export function useGameState() {
     return getWordCountForTavoites(tavoites);
   }, []);
 
+  // Cases Arena related - default to 'static' (where? - inessive + adessive) as a good starting point
+  const [selectedCaseCategories, setSelectedCaseCategories] = useState<CaseCategory[]>(['static']);
+  
+  const startCasesSession = useCallback((categories: CaseCategory[]) => {
+    dispatch({ type: 'START_CASES_SESSION', categories });
+  }, []);
+  
+  const getCasesSentenceCount = useCallback((categories: CaseCategory[]) => {
+    let count = 0;
+    const seenIds = new Set<string>();
+    for (const category of categories) {
+      const sentences = getSentencesByCategory(category);
+      for (const s of sentences) {
+        if (!seenIds.has(s.id)) {
+          seenIds.add(s.id);
+          count++;
+        }
+      }
+    }
+    return count;
+  }, []);
+
+  // Reading session actions
+  const startReadingSession = useCallback((article: YleArticle) => {
+    dispatch({ type: 'START_READING_SESSION', article });
+  }, []);
+
+  const submitReadingAnswer = useCallback((questionIndex: number, answerIndex: number) => {
+    dispatch({ type: 'SUBMIT_READING_ANSWER', questionIndex, answerIndex });
+  }, []);
+
+  const toggleReadingVocabulary = useCallback(() => {
+    dispatch({ type: 'TOGGLE_READING_VOCABULARY' });
+  }, []);
+
+  const finishReading = useCallback(() => {
+    dispatch({ type: 'FINISH_READING' });
+  }, []);
+
   return {
     state,
     selectedLevels,
@@ -1177,5 +1577,16 @@ export function useGameState() {
     startVocabularySession,
     getTavoiteWordCount,
     allTavoites: getAllTavoites(),
+    // Cases exports
+    selectedCaseCategories,
+    setSelectedCaseCategories,
+    startCasesSession,
+    getCasesSentenceCount,
+    caseGroups: CASE_GROUPS,
+    // Reading exports
+    startReadingSession,
+    submitReadingAnswer,
+    toggleReadingVocabulary,
+    finishReading,
   };
 }

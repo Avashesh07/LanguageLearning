@@ -1,6 +1,6 @@
 // Finnish Verb Arena - Types
 
-export type GameMode = 'menu' | 'recall' | 'active-recall' | 'conjugation' | 'consonant-gradation' | 'imperfect' | 'vocabulary-recall' | 'vocabulary-active-recall';
+export type GameMode = 'menu' | 'recall' | 'active-recall' | 'conjugation' | 'consonant-gradation' | 'imperfect' | 'vocabulary-recall' | 'vocabulary-active-recall' | 'cases-fill-blank' | 'reading';
 
 export type VerbLevel = 'A1' | 'A2' | 'B1';
 
@@ -76,6 +76,7 @@ export interface PlayerState {
   bestTimes: TimeRecord[];
   imperfectCompleted?: boolean; // Track imperfect mode completion
   tavoiteProgress?: TavoiteProgress[]; // Track Tavoite completions
+  casesProgress?: CasesProgress[]; // Track cases game progress
 }
 
 // Full game state
@@ -96,6 +97,11 @@ export interface GameState {
   // Vocabulary (Kurssin Arvostelu) specific
   vocabularySession?: VocabularySessionState;
   currentVocabularyWord?: CurrentVocabularyWord;
+  // Finnish Cases specific
+  casesSession?: CasesSessionState;
+  currentCaseSentence?: CurrentCaseSentence;
+  // Reading specific
+  readingSession?: ReadingSessionState;
 }
 
 export interface FeedbackData {
@@ -169,4 +175,82 @@ export interface VocabularySessionState {
 export interface CurrentVocabularyWord {
   finnish: string;
   english: string;
+}
+
+// Finnish Cases Game Types
+export type CaseType = 'inessive' | 'elative' | 'illative' | 'adessive' | 'ablative' | 'allative';
+// Broad categories
+// 'location' = all inside cases, 'surface' = all surface cases, 'pronoun' = pronoun forms
+// Movement-based categories  
+// 'static' = where (inessive + adessive), 'from' = from where (elative + ablative), 'to' = to where (illative + allative)
+// Individual cases
+// Each case can be practiced separately
+export type CaseCategory = 
+  | 'location' | 'surface' | 'pronoun'  // broad
+  | 'static' | 'from' | 'to'            // by movement
+  | 'inessive' | 'elative' | 'illative' | 'adessive' | 'ablative' | 'allative';  // individual
+
+export interface CaseSentenceState {
+  id: string;
+  finnish: string;
+  english: string;
+  caseUsed: CaseType;
+  wordInCase: string;
+  baseWord: string;
+  category: CaseCategory;
+  sentenceWithBlank: string;
+  hint?: string;
+  correctCount: number;
+  wrongCount: number;
+  eliminated: boolean;
+}
+
+export interface CasesSessionState {
+  mode: 'cases-fill-blank';
+  selectedCategories: CaseCategory[];
+  sentences: CaseSentenceState[];
+  currentSentenceIndex: number;
+  startTime: number | null;
+  endTime: number | null;
+  wrongCount: number;
+  isComplete: boolean;
+}
+
+export interface CurrentCaseSentence {
+  id: string;
+  finnish: string;
+  english: string;
+  caseUsed: CaseType;
+  wordInCase: string;
+  baseWord: string;
+  sentenceWithBlank: string;
+  hint?: string;
+}
+
+export interface CasesProgress {
+  category: CaseCategory;
+  fillBlankCompleted: boolean;
+  bestTimeMs?: number;
+  bestDate?: string;
+}
+
+// Reading comprehension types
+export interface ReadingQuestionState {
+  questionId: string;
+  answered: boolean;
+  selectedAnswer: number | null;
+  isCorrect: boolean | null;
+}
+
+export interface ReadingSessionState {
+  mode: 'reading';
+  articleId: string;
+  questions: ReadingQuestionState[];
+  currentQuestionIndex: number;
+  showingVocabulary: boolean;
+  showingTranslation: boolean;
+  startTime: number | null;
+  endTime: number | null;
+  wrongCount: number;
+  isComplete: boolean;
 }
