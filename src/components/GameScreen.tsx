@@ -249,6 +249,17 @@ export function GameScreen({
                 <div className="feedback-correct-answer">
                   Correct: <span>{feedback.correctAnswer}</span>
                 </div>
+                {feedback.exampleSentence && feedback.exampleTranslation && (
+                  <div className="feedback-section" style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                    <div className="feedback-section-title" style={{ fontSize: '0.9rem', marginBottom: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>📝 Example in context:</div>
+                    <div className="feedback-section-content" style={{ fontSize: '1rem', marginBottom: '0.5rem', fontStyle: 'italic', color: 'var(--text-primary)' }}>
+                      {feedback.exampleSentence}
+                    </div>
+                    <div className="feedback-section-content" style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                      {feedback.exampleTranslation}
+                    </div>
+                  </div>
+                )}
                 {feedback.rule && (
                   <div className="feedback-section">
                     <div className="feedback-section-title">Rule</div>
@@ -270,8 +281,9 @@ export function GameScreen({
     );
   }
 
-  // Handle vocabulary modes
-  const isVocabularyMode = mode === 'vocabulary-recall' || mode === 'vocabulary-active-recall';
+  // Handle vocabulary modes (including memorise)
+  const isVocabularyMode = mode === 'vocabulary-recall' || mode === 'vocabulary-active-recall' || mode === 'vocabulary-memorise';
+  const isMemoriseMode = mode === 'vocabulary-memorise';
   
   if (isVocabularyMode) {
     if (!vocabularySession || !currentVocabularyWord) return null;
@@ -280,6 +292,11 @@ export function GameScreen({
     const eliminatedCount = vocabularySession.words.length - activeCount;
     const currentWordState = vocabularySession.words[vocabularySession.currentWordIndex];
     const hasWrongAnswer = currentWordState.wrongCount > 0;
+    
+    // For memorise mode, get progress info
+    const memoriseRequired = currentWordState.requiredCorrect || 1;
+    const memoriseConsecutive = currentWordState.consecutiveCorrect || 0;
+    const memoriseDirection = currentWordState.currentDirection || 'finnish-to-english';
     
     // Get tavoite info for display
     const tavoiteNames = vocabularySession.selectedTavoites
@@ -291,15 +308,35 @@ export function GameScreen({
       : '';
     
     const isRecall = mode === 'vocabulary-recall';
-    const promptText = isRecall ? currentVocabularyWord.finnish : currentVocabularyWord.english;
-    const promptLabel = isRecall ? 'Finnish' : 'English';
-    const placeholderText = isRecall ? 'English translation...' : 'Finnish word...';
+    // For memorise mode, direction can change based on required correct count
+    const isMemoriseRecall = isMemoriseMode && memoriseDirection === 'finnish-to-english';
+    const showFinnish = isRecall || isMemoriseRecall;
+    const promptText = showFinnish ? currentVocabularyWord.finnish : currentVocabularyWord.english;
+    
+    // Dynamic labels based on direction
+    let promptLabel: string;
+    let placeholderText: string;
+    if (isMemoriseMode) {
+      if (memoriseDirection === 'finnish-to-english') {
+        promptLabel = 'Suomeksi';
+        placeholderText = 'Kirjoita englanniksi...';
+      } else {
+        promptLabel = 'Englanniksi';
+        placeholderText = 'Kirjoita suomeksi...';
+      }
+    } else if (isRecall) {
+      promptLabel = 'Finnish';
+      placeholderText = 'English translation...';
+    } else {
+      promptLabel = 'English';
+      placeholderText = 'Finnish word...';
+    }
     
     return (
-      <div className="game-screen vocabulary-mode">
+      <div className={`game-screen vocabulary-mode ${isMemoriseMode ? 'memorise-game' : ''}`}>
         <div className="game-header">
           <button className="quit-btn" onClick={onQuit}>
-            <CloseIcon size={14} /> Quit
+            <CloseIcon size={14} /> Lopeta
           </button>
           <div className="timer">{formatTime(elapsedTime)}</div>
           <div className="progress-stats">
@@ -311,25 +348,43 @@ export function GameScreen({
 
         <div className="game-stats-bar">
           <div className="stat-item">
-            <span className="stat-label">Remaining</span>
+            <span className="stat-label">{isMemoriseMode ? 'Jäljellä' : 'Remaining'}</span>
             <span className="stat-value">{activeCount}</span>
           </div>
           <div className="stat-item">
-            <span className="stat-label">Mistakes</span>
+            <span className="stat-label">{isMemoriseMode ? 'Virheet' : 'Mistakes'}</span>
             <span className="stat-value mistakes">{vocabularySession.wrongCount}</span>
           </div>
-          <div className="stat-item tavoite-info">
-            <span className="stat-label">Tavoites</span>
-            <span className="stat-value small">{tavoiteNames}{moreCount}</span>
-          </div>
+          {!isMemoriseMode && (
+            <div className="stat-item tavoite-info">
+              <span className="stat-label">Tavoites</span>
+              <span className="stat-value small">{tavoiteNames}{moreCount}</span>
+            </div>
+          )}
         </div>
 
         <div className="prompt-area">
-          <div className="prompt-box vocabulary">
+          <div className={`prompt-box vocabulary ${isMemoriseMode ? 'memorise-mode' : ''}`}>
             <div className="prompt-label">{promptLabel}</div>
             <div className="prompt-verb">{promptText}</div>
             
-            {hasWrongAnswer && (
+            {isMemoriseMode && (
+              <div className="memorise-progress">
+                <div className="memorise-progress-dots">
+                  {Array.from({ length: memoriseRequired }).map((_, i) => (
+                    <span 
+                      key={i} 
+                      className={`memorise-dot ${i < memoriseConsecutive ? 'filled' : ''}`}
+                    />
+                  ))}
+                </div>
+                <span className="memorise-progress-text">
+                  {memoriseConsecutive}/{memoriseRequired} oikein
+                </span>
+              </div>
+            )}
+            
+            {hasWrongAnswer && !isMemoriseMode && (
               <div className="retry-indicator">
                 Try again
               </div>

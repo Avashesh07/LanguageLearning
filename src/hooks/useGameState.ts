@@ -18,12 +18,16 @@ import type {
   CaseSentenceState,
   CaseCategory,
   ReadingSessionState,
+  VocabularySource,
+  SM2ChapterProgress,
+  SM2CycleProgress,
 } from '../types';
 import { getArticleById, type YleArticle } from '../data/yleArticles';
 import { getVerbsForLevels, verbsByLevel, verbTypeInfo, negativeInfo, getRandomSentence, getRandomImperfectSentence } from '../data/verbs';
 import { getAllRules, createPracticeQuestions, type GradationRule } from '../data/consonantGradation';
 import { saveToCSV, loadFromCSV } from '../utils/csvDatabase';
 import { getWordsForTavoites, getAllTavoites, getWordCountForTavoites } from '../data/tavoiteVocabulary';
+import { getAllSM2Chapters, getWordsForSM2Chapters, getSM2WordCountForChapters, getWordsForSM2Cycles, getSM2WordCountForCycles, getAllSM2Cycles, getSM2CyclesForChapter, type SM2Chapter } from '../data/suomenMestari2';
 import { getSentencesByCategory, CASES, CASE_GROUPS, getCaseEndingExplanation, type CaseSentence } from '../data/finnishCases';
 
 const STORAGE_KEY = 'finnish-verb-arena-v4';
@@ -32,7 +36,9 @@ const PERSONS: Person[] = ['minä', 'sinä', 'hän', 'me', 'te', 'he'];
 
 type GameAction =
   | { type: 'START_SESSION'; mode: GameMode; levels: VerbLevel[] }
-  | { type: 'START_VOCABULARY_SESSION'; mode: 'vocabulary-recall' | 'vocabulary-active-recall'; tavoites: number[] }
+  | { type: 'START_VOCABULARY_SESSION'; mode: 'vocabulary-recall' | 'vocabulary-active-recall'; tavoites: number[]; source: 'kurssin-arvostelu' }
+  | { type: 'START_SM2_SESSION'; mode: 'vocabulary-recall' | 'vocabulary-active-recall'; cycleIds: string[] }
+  | { type: 'START_SM2_MEMORISE_SESSION'; cycleIds: string[] }
   | { type: 'START_CASES_SESSION'; categories: CaseCategory[] }
   | { type: 'START_READING_SESSION'; article: YleArticle }
   | { type: 'SUBMIT_ANSWER'; answer: string }
@@ -53,6 +59,8 @@ function getInitialPlayerState(): PlayerState {
     ],
     bestTimes: [],
     tavoiteProgress: [],
+    sm2Progress: [],
+    sm2CycleProgress: [],
   };
 }
 
@@ -171,7 +179,72 @@ function createVocabularySession(mode: 'vocabulary-recall' | 'vocabulary-active-
 
   return {
     mode,
+    source: 'kurssin-arvostelu',
     selectedTavoites: tavoites,
+    words: shuffledWords,
+    currentWordIndex: 0,
+    startTime: Date.now(),
+    endTime: null,
+    wrongCount: 0,
+    isComplete: false,
+  };
+}
+
+// SM2 Vocabulary Session Helper - now uses cycles instead of chapters
+function createSM2VocabularySession(mode: 'vocabulary-recall' | 'vocabulary-active-recall', cycleIds: string[]): VocabularySessionState {
+  const words = getWordsForSM2Cycles(cycleIds);
+  
+  const shuffledWords: VocabularyWordState[] = [...words]
+    .sort(() => Math.random() - 0.5)
+    .map((w) => ({
+      finnish: w.finnish,
+      english: w.english,
+      synonyms: w.synonyms,
+      finnishSynonyms: w.finnishSynonyms,
+      correctCount: 0,
+      wrongCount: 0,
+      eliminated: false,
+    }));
+
+  return {
+    mode,
+    source: 'suomen-mestari-2',
+    selectedTavoites: [], // Not used for SM2
+    selectedCycles: cycleIds,
+    words: shuffledWords,
+    currentWordIndex: 0,
+    startTime: Date.now(),
+    endTime: null,
+    wrongCount: 0,
+    isComplete: false,
+  };
+}
+
+// SM2 Memorise Session Helper - requires 3 correct answers after a mistake
+// Uses cycles (e.g., "1a", "1b") instead of dynamic chunks
+function createSM2MemoriseSession(cycleIds: string[]): VocabularySessionState {
+  const words = getWordsForSM2Cycles(cycleIds);
+  
+  const shuffledWords: VocabularyWordState[] = [...words]
+    .sort(() => Math.random() - 0.5)
+    .map((w) => ({
+      finnish: w.finnish,
+      english: w.english,
+      synonyms: w.synonyms,
+      finnishSynonyms: w.finnishSynonyms,
+      correctCount: 0,
+      wrongCount: 0,
+      eliminated: false,
+      requiredCorrect: 1, // Start with needing 1 correct
+      consecutiveCorrect: 0,
+      currentDirection: 'finnish-to-english' as const,
+    }));
+
+  return {
+    mode: 'vocabulary-memorise',
+    source: 'suomen-mestari-2',
+    selectedTavoites: [],
+    selectedCycles: cycleIds,
     words: shuffledWords,
     currentWordIndex: 0,
     startTime: Date.now(),
@@ -244,6 +317,76 @@ function generateEnglishVariations(english: string): string[] {
   }
   
   return variations;
+}
+
+// Generate contextual example sentences for vocabulary words
+function generateExampleSentence(finnish: string, english: string, mode: 'vocabulary-recall' | 'vocabulary-active-recall'): { sentence: string; translation: string } {
+  const englishLower = english.toLowerCase();
+  const isVerb = englishLower.startsWith('to ') || ['want', 'need', 'go', 'come', 'do', 'make', 'take', 'give', 'see', 'know', 'say', 'think', 'get', 'have', 'be', 'can', 'will', 'book', 'rent', 'arrive', 'check', 'pick', 'drop', 'hear', 'plan', 'suit', 'write'].some(v => englishLower.includes(v));
+  
+  // Contexts: badminton, office work, friends hanging out
+  const badmintonSentences = isVerb ? [
+    { fi: `Me pelaamme sulkapalloa ${finnish}`, en: `We ${english} badminton` },
+    { fi: `Kaverini ja minä ${finnish} sulkapalloa viikonloppuna`, en: `My friend and I ${english} badminton on weekends` },
+    { fi: `Tänään ${finnish} sulkapalloa`, en: `Today I ${english} badminton` },
+    { fi: `Sulkapallohallissa ${finnish}`, en: `At the badminton hall, we ${english}` },
+    { fi: `Haluan ${finnish} sulkapalloa`, en: `I want to ${english} badminton` },
+  ] : [
+    { fi: `Sulkapallossa ${finnish} tärkeää`, en: `In badminton, ${english} is important` },
+    { fi: `Minulla on ${finnish} sulkapalloa varten`, en: `I have ${english} for badminton` },
+    { fi: `Tarvitsen ${finnish} pelaamiseen`, en: `I need ${english} to play` },
+    { fi: `${finnish} auttaa pelaamisessa`, en: `${english} helps with playing` },
+  ];
+  
+  const officeSentences = isVerb ? [
+    { fi: `Toimistossa ${finnish}`, en: `At the office, we ${english}` },
+    { fi: `Työkaverini ja minä ${finnish}`, en: `My colleague and I ${english}` },
+    { fi: `Töissä ${finnish}`, en: `At work, I ${english}` },
+    { fi: `Kokouksessa ${finnish}`, en: `In the meeting, we ${english}` },
+    { fi: `Projektissa ${finnish}`, en: `In the project, we ${english}` },
+  ] : [
+    { fi: `Toimistossa ${finnish}`, en: `At the office, ${english}` },
+    { fi: `Tarvitsen ${finnish} työhön`, en: `I need ${english} for work` },
+    { fi: `Minulla on ${finnish}`, en: `I have ${english}` },
+    { fi: `Käytän ${finnish}`, en: `I use ${english}` },
+  ];
+  
+  const friendsSentences = isVerb ? [
+    { fi: `Kaverien kanssa ${finnish}`, en: `With friends, we ${english}` },
+    { fi: `Me ${finnish} yhdessä`, en: `We ${english} together` },
+    { fi: `Illalla ${finnish}`, en: `In the evening, we ${english}` },
+    { fi: `Kahvilla ${finnish}`, en: `At the café, we ${english}` },
+    { fi: `Kaverini ${finnish}`, en: `My friend ${english}` },
+  ] : [
+    { fi: `Kaverien kanssa ${finnish}`, en: `With friends, ${english}` },
+    { fi: `Minulla on ${finnish}`, en: `I have ${english}` },
+    { fi: `Tarvitsen ${finnish}`, en: `I need ${english}` },
+    { fi: `${finnish} on mukavaa`, en: `${english} is nice` },
+  ];
+  
+  const allContexts = [
+    { name: 'badminton', sentences: badmintonSentences },
+    { name: 'office', sentences: officeSentences },
+    { name: 'friends', sentences: friendsSentences },
+  ];
+  
+  // Pick a random context and sentence
+  const context = allContexts[Math.floor(Math.random() * allContexts.length)];
+  const template = context.sentences[Math.floor(Math.random() * context.sentences.length)];
+  
+  if (mode === 'vocabulary-recall') {
+    // For Finnish→English, show Finnish sentence with English translation
+    return {
+      sentence: template.fi.replace(finnish, `[${finnish}]`),
+      translation: template.en.replace(english, `[${english}]`)
+    };
+  } else {
+    // For English→Finnish, show English sentence with Finnish translation
+    return {
+      sentence: template.en.replace(english, `[${english}]`),
+      translation: template.fi.replace(finnish, `[${finnish}]`)
+    };
+  }
 }
 
 function checkVocabularyAnswer(mode: 'vocabulary-recall' | 'vocabulary-active-recall', word: VocabularyWordState, answer: string): boolean {
@@ -591,6 +734,64 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
 
+    case 'START_SM2_SESSION': {
+      const vocabularySession = createSM2VocabularySession(action.mode, action.cycleIds);
+      const firstWordIndex = getNextActiveWordIndex(vocabularySession, 0);
+      const firstWord = vocabularySession.words[firstWordIndex];
+      
+      return {
+        ...state,
+        mode: action.mode,
+        session: null,
+        currentVerb: null,
+        feedback: null,
+        currentPerson: undefined,
+        currentPolarity: undefined,
+        currentSentence: undefined,
+        currentGradationQuestion: undefined,
+        gradationSession: undefined,
+        vocabularySession: {
+          ...vocabularySession,
+          currentWordIndex: firstWordIndex,
+        },
+        currentVocabularyWord: firstWord ? {
+          finnish: firstWord.finnish,
+          english: firstWord.english,
+        } : undefined,
+        casesSession: undefined,
+        currentCaseSentence: undefined,
+      };
+    }
+
+    case 'START_SM2_MEMORISE_SESSION': {
+      const vocabularySession = createSM2MemoriseSession(action.cycleIds);
+      const firstWordIndex = 0; // Start from the first word
+      const firstWord = vocabularySession.words[firstWordIndex];
+      
+      return {
+        ...state,
+        mode: 'vocabulary-memorise',
+        session: null,
+        currentVerb: null,
+        feedback: null,
+        currentPerson: undefined,
+        currentPolarity: undefined,
+        currentSentence: undefined,
+        currentGradationQuestion: undefined,
+        gradationSession: undefined,
+        vocabularySession: {
+          ...vocabularySession,
+          currentWordIndex: firstWordIndex,
+        },
+        currentVocabularyWord: firstWord ? {
+          finnish: firstWord.finnish,
+          english: firstWord.english,
+        } : undefined,
+        casesSession: undefined,
+        currentCaseSentence: undefined,
+      };
+    }
+
     case 'START_CASES_SESSION': {
       const casesSession = createCasesSession(action.categories);
       const firstSentenceIndex = getNextActiveSentenceIndex(casesSession, 0);
@@ -904,17 +1105,232 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             }
             
             newPlayer = {
-              ...state.player,
+              ...newPlayer,
               tavoiteProgress: newTavoiteProgress,
             };
           }
+          
+          // For SM2 modes, save cycle progress
+          if (newVocabSession.source === 'suomen-mestari-2' && newVocabSession.selectedCycles && newVocabSession.wrongCount === 0) {
+            const timeMs = newVocabSession.endTime - (newVocabSession.startTime || newVocabSession.endTime);
+            const currentDate = new Date().toISOString().split('T')[0];
+            
+            const existingCycleProgress = state.player.sm2CycleProgress || [];
+            const newCycleProgress = [...existingCycleProgress];
+            
+            for (const cycleId of newVocabSession.selectedCycles) {
+              const existingIdx = newCycleProgress.findIndex(cp => cp.cycleId === cycleId);
+              
+              // Extract chapter ID from cycle ID (e.g., "1a" -> 1)
+              const chapterId = parseInt(cycleId.match(/^\d+/)?.[0] || '0');
+              
+              if (existingIdx >= 0) {
+                // Update existing
+                const existing = newCycleProgress[existingIdx];
+                const updates: Partial<SM2CycleProgress> = {};
+                
+                if (state.mode === 'vocabulary-recall') {
+                  updates.recallCompleted = true;
+                } else if (state.mode === 'vocabulary-active-recall') {
+                  updates.activeRecallCompleted = true;
+                }
+                
+                if (!existing.bestTimeMs || timeMs < existing.bestTimeMs) {
+                  updates.bestTimeMs = timeMs;
+                  updates.bestDate = currentDate;
+                }
+                
+                newCycleProgress[existingIdx] = { ...existing, ...updates };
+              } else {
+                // Add new cycle progress
+                const newProgress: SM2CycleProgress = {
+                  cycleId,
+                  chapterId,
+                  memoriseCompleted: false,
+                  recallCompleted: state.mode === 'vocabulary-recall',
+                  activeRecallCompleted: state.mode === 'vocabulary-active-recall',
+                  bestTimeMs: timeMs,
+                  bestDate: currentDate,
+                };
+                newCycleProgress.push(newProgress);
+              }
+            }
+            
+            newPlayer = {
+              ...newPlayer,
+              sm2CycleProgress: newCycleProgress,
+            };
+          }
+          
         }
         
         const correctAnswer = getVocabularyExpectedAnswer(state.mode, currentWordState);
+        
+        // Generate example sentence for wrong answers
+        let exampleSentence: string | undefined;
+        let exampleTranslation: string | undefined;
+        if (!isCorrect) {
+          const example = generateExampleSentence(currentWordState.finnish, currentWordState.english, state.mode);
+          exampleSentence = example.sentence;
+          exampleTranslation = example.translation;
+        }
+        
         const feedback: FeedbackData = {
           isCorrect,
           userAnswer: action.answer,
           correctAnswer,
+          exampleSentence,
+          exampleTranslation,
+        };
+        
+        return {
+          ...state,
+          player: newPlayer,
+          vocabularySession: newVocabSession,
+          feedback,
+        };
+      }
+      
+      // Handle memorise mode - requires multiple correct answers after mistakes
+      // When wrong: need 3 correct - first 2 are Finnish→English, 3rd is English→Finnish
+      if (state.mode === 'vocabulary-memorise') {
+        if (!state.vocabularySession || !state.currentVocabularyWord) return state;
+        
+        const vocabSession = state.vocabularySession;
+        const currentWordState = vocabSession.words[vocabSession.currentWordIndex];
+        
+        const currentRequired = currentWordState.requiredCorrect || 1;
+        const currentConsecutive = currentWordState.consecutiveCorrect || 0;
+        const currentDirection = currentWordState.currentDirection || 'finnish-to-english';
+        
+        // Check answer based on current direction
+        const checkMode = currentDirection === 'finnish-to-english' ? 'vocabulary-recall' : 'vocabulary-active-recall';
+        const isCorrect = checkVocabularyAnswer(checkMode, currentWordState, action.answer);
+        
+        let newRequiredCorrect = currentRequired;
+        let newConsecutiveCorrect = currentConsecutive;
+        let newDirection: 'finnish-to-english' | 'english-to-finnish' = currentDirection;
+        let shouldEliminate = false;
+        
+        if (isCorrect) {
+          newConsecutiveCorrect = currentConsecutive + 1;
+          // Check if we've met the required correct answers
+          if (newConsecutiveCorrect >= currentRequired) {
+            shouldEliminate = true;
+          } else if (currentRequired === 3) {
+            // For 3 required: first 2 are Finnish→English, 3rd is English→Finnish
+            if (newConsecutiveCorrect === 2) {
+              newDirection = 'english-to-finnish';
+            }
+          }
+        } else {
+          // Wrong answer: reset consecutive, increase required to 3, start with Finnish→English
+          newConsecutiveCorrect = 0;
+          newRequiredCorrect = 3;
+          newDirection = 'finnish-to-english';
+        }
+        
+        const newWordState: VocabularyWordState = {
+          ...currentWordState,
+          correctCount: isCorrect ? currentWordState.correctCount + 1 : currentWordState.correctCount,
+          wrongCount: currentWordState.wrongCount + (isCorrect ? 0 : 1),
+          eliminated: shouldEliminate,
+          requiredCorrect: newRequiredCorrect,
+          consecutiveCorrect: newConsecutiveCorrect,
+          currentDirection: newDirection,
+        };
+        
+        const newWords = [...vocabSession.words];
+        newWords[vocabSession.currentWordIndex] = newWordState;
+        
+        const newWrongCount = vocabSession.wrongCount + (isCorrect ? 0 : 1);
+        const newVocabSession: VocabularySessionState = {
+          ...vocabSession,
+          words: newWords,
+          wrongCount: newWrongCount,
+        };
+        
+        const activeCount = getActiveWordCount(newVocabSession);
+        const isComplete = activeCount === 0;
+        
+        let newPlayer = state.player;
+        
+        if (isComplete) {
+          newVocabSession.isComplete = true;
+          newVocabSession.endTime = Date.now();
+          
+          // Save cycle progress for SM2 memorise mode
+          if (newVocabSession.source === 'suomen-mestari-2' && newVocabSession.selectedCycles) {
+            const timeMs = newVocabSession.endTime - (newVocabSession.startTime || newVocabSession.endTime);
+            const currentDate = new Date().toISOString().split('T')[0];
+            
+            const existingCycleProgress = state.player.sm2CycleProgress || [];
+            const newCycleProgress = [...existingCycleProgress];
+            
+            for (const cycleId of newVocabSession.selectedCycles) {
+              const existingIdx = newCycleProgress.findIndex(cp => cp.cycleId === cycleId);
+              
+              // Extract chapter ID from cycle ID (e.g., "1a" -> 1)
+              const chapterId = parseInt(cycleId.match(/^\d+/)?.[0] || '0');
+              
+              if (existingIdx >= 0) {
+                // Update existing - only update time if better
+                const existing = newCycleProgress[existingIdx];
+                if (!existing.bestTimeMs || timeMs < existing.bestTimeMs) {
+                  newCycleProgress[existingIdx] = {
+                    ...existing,
+                    memoriseCompleted: true,
+                    bestTimeMs: timeMs,
+                    bestDate: currentDate,
+                  };
+                } else if (!existing.memoriseCompleted) {
+                  newCycleProgress[existingIdx] = {
+                    ...existing,
+                    memoriseCompleted: true,
+                  };
+                }
+              } else {
+                // Add new cycle progress
+                newCycleProgress.push({
+                  cycleId,
+                  chapterId,
+                  memoriseCompleted: true,
+                  recallCompleted: false,
+                  activeRecallCompleted: false,
+                  bestTimeMs: timeMs,
+                  bestDate: currentDate,
+                });
+              }
+            }
+            
+            newPlayer = {
+              ...newPlayer,
+              sm2CycleProgress: newCycleProgress,
+            };
+          }
+        }
+        
+        // Get the expected answer based on current direction
+        const correctAnswer = currentDirection === 'finnish-to-english' 
+          ? currentWordState.english 
+          : currentWordState.finnish;
+        
+        // Show progress in feedback with direction info
+        let progressInfo: string;
+        if (shouldEliminate) {
+          progressInfo = '✓ Opittu!';
+        } else if (isCorrect) {
+          const nextDirection = newDirection === 'english-to-finnish' ? '(seuraava: suomeksi)' : '';
+          progressInfo = `${newConsecutiveCorrect}/${newRequiredCorrect} oikein ${nextDirection}`;
+        } else {
+          progressInfo = `Tarvitset ${newRequiredCorrect}x oikein peräkkäin`;
+        }
+        
+        const feedback: FeedbackData = {
+          isCorrect,
+          userAnswer: action.answer,
+          correctAnswer,
+          rule: progressInfo, // Using rule field for progress info
         };
         
         return {
@@ -1275,6 +1691,49 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
       
+      // Handle memorise mode - may stay on same word or move to next
+      if (state.mode === 'vocabulary-memorise') {
+        if (!state.vocabularySession) return state;
+        
+        const currentWord = state.vocabularySession.words[state.vocabularySession.currentWordIndex];
+        
+        // If current word is eliminated, move to next
+        if (currentWord.eliminated) {
+          const nextIndex = getNextActiveWordIndex(
+            state.vocabularySession,
+            state.vocabularySession.currentWordIndex + 1
+          );
+          
+          if (nextIndex === -1 || state.vocabularySession.isComplete) {
+            return {
+              ...state,
+              feedback: null,
+            };
+          }
+          
+          const nextWord = state.vocabularySession.words[nextIndex];
+          
+          return {
+            ...state,
+            vocabularySession: {
+              ...state.vocabularySession,
+              currentWordIndex: nextIndex,
+            },
+            currentVocabularyWord: {
+              finnish: nextWord.finnish,
+              english: nextWord.english,
+            },
+            feedback: null,
+          };
+        }
+        
+        // Stay on current word (need more correct answers)
+        return {
+          ...state,
+          feedback: null,
+        };
+      }
+      
       // Handle cases mode
       if (state.mode === 'cases-fill-blank') {
         if (!state.casesSession) return state;
@@ -1507,11 +1966,30 @@ export function useGameState() {
   const [selectedTavoites, setSelectedTavoites] = useState<number[]>([1]);
   
   const startVocabularySession = useCallback((mode: 'vocabulary-recall' | 'vocabulary-active-recall', tavoites: number[]) => {
-    dispatch({ type: 'START_VOCABULARY_SESSION', mode, tavoites });
+    dispatch({ type: 'START_VOCABULARY_SESSION', mode, tavoites, source: 'kurssin-arvostelu' });
   }, []);
   
   const getTavoiteWordCount = useCallback((tavoites: number[]) => {
     return getWordCountForTavoites(tavoites);
+  }, []);
+
+  // Suomen Mestari 2 related
+  const [selectedSM2Chapters, setSelectedSM2Chapters] = useState<number[]>([1]);
+  
+  const startSM2Session = useCallback((mode: 'vocabulary-recall' | 'vocabulary-active-recall', cycleIds: string[]) => {
+    dispatch({ type: 'START_SM2_SESSION', mode, cycleIds });
+  }, []);
+  
+  const startSM2MemoriseSession = useCallback((cycleIds: string[]) => {
+    dispatch({ type: 'START_SM2_MEMORISE_SESSION', cycleIds });
+  }, []);
+  
+  const getSM2WordCount = useCallback((chapters: number[]) => {
+    return getSM2WordCountForChapters(chapters);
+  }, []);
+  
+  const getSM2CycleWordCount = useCallback((cycleIds: string[]) => {
+    return getSM2WordCountForCycles(cycleIds);
   }, []);
 
   // Cases Arena related - default to 'static' (where? - inessive + adessive) as a good starting point
@@ -1571,12 +2049,22 @@ export function useGameState() {
     currentSessionLevels,
     verbsByLevel,
     isLoading,
-    // Vocabulary exports
+    // Vocabulary exports (Kurssin Arvostelu)
     selectedTavoites,
     setSelectedTavoites,
     startVocabularySession,
     getTavoiteWordCount,
     allTavoites: getAllTavoites(),
+    // Suomen Mestari 2 exports
+    selectedSM2Chapters,
+    setSelectedSM2Chapters,
+    startSM2Session,
+    startSM2MemoriseSession,
+    getSM2WordCount,
+    getSM2CycleWordCount,
+    allSM2Chapters: getAllSM2Chapters(),
+    allSM2Cycles: getAllSM2Cycles(),
+    getSM2CyclesForChapter,
     // Cases exports
     selectedCaseCategories,
     setSelectedCaseCategories,

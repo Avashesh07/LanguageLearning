@@ -1,6 +1,6 @@
 // Finnish Verb Arena - Types
 
-export type GameMode = 'menu' | 'recall' | 'active-recall' | 'conjugation' | 'consonant-gradation' | 'imperfect' | 'vocabulary-recall' | 'vocabulary-active-recall' | 'cases-fill-blank' | 'reading';
+export type GameMode = 'menu' | 'recall' | 'active-recall' | 'conjugation' | 'consonant-gradation' | 'imperfect' | 'vocabulary-recall' | 'vocabulary-active-recall' | 'vocabulary-memorise' | 'cases-fill-blank' | 'reading';
 
 export type VerbLevel = 'A1' | 'A2' | 'B1';
 
@@ -70,6 +70,29 @@ export interface TavoiteProgress {
   bestDate?: string;
 }
 
+// Track completion per SM2 Chapter
+export interface SM2ChapterProgress {
+  chapterId: number;
+  recallCompleted: boolean;
+  activeRecallCompleted: boolean;
+  bestTimeMs?: number;
+  bestDate?: string;
+}
+
+// Track completion per SM2 Cycle (for all modes)
+export interface SM2CycleProgress {
+  cycleId: string; // e.g., "1a", "1b"
+  chapterId: number;
+  memoriseCompleted: boolean;
+  recallCompleted: boolean;
+  activeRecallCompleted: boolean;
+  bestTimeMs?: number;
+  bestDate?: string;
+}
+
+// Vocabulary source type
+export type VocabularySource = 'kurssin-arvostelu' | 'suomen-mestari-2';
+
 // Player's persistent state
 export interface PlayerState {
   levelProgress: LevelProgress[];
@@ -77,6 +100,8 @@ export interface PlayerState {
   imperfectCompleted?: boolean; // Track imperfect mode completion
   tavoiteProgress?: TavoiteProgress[]; // Track Tavoite completions
   casesProgress?: CasesProgress[]; // Track cases game progress
+  sm2Progress?: SM2ChapterProgress[]; // Track Suomen Mestari 2 chapter completions
+  sm2CycleProgress?: SM2CycleProgress[]; // Track Suomen Mestari 2 cycle completions (for memorise mode)
 }
 
 // Full game state
@@ -114,6 +139,9 @@ export interface FeedbackData {
   rule?: string;
   similarVerbs?: string[];
   fullConjugation?: Record<Person, string>;
+  // Example sentence with translation for vocabulary
+  exampleSentence?: string;
+  exampleTranslation?: string;
 }
 
 // Consonant Gradation Types
@@ -159,11 +187,20 @@ export interface VocabularyWordState {
   correctCount: number;
   wrongCount: number;
   eliminated: boolean;
+  // For memorise mode - tracks consecutive correct answers needed
+  requiredCorrect?: number; // How many more correct answers needed (starts at 1, increases to 3 on wrong)
+  consecutiveCorrect?: number; // How many consecutive correct so far
+  // For memorise mode - tracks answer direction
+  // When requiredCorrect is 3: first 2 = 'finnish-to-english', 3rd = 'english-to-finnish'
+  currentDirection?: 'finnish-to-english' | 'english-to-finnish';
 }
 
 export interface VocabularySessionState {
-  mode: 'vocabulary-recall' | 'vocabulary-active-recall';
-  selectedTavoites: number[];
+  mode: 'vocabulary-recall' | 'vocabulary-active-recall' | 'vocabulary-memorise';
+  source: VocabularySource;
+  selectedTavoites: number[]; // For Kurssin Arvostelu
+  selectedChapters?: number[]; // For Suomen Mestari 2 (recall/active recall modes)
+  selectedCycles?: string[]; // For Suomen Mestari 2 memorise mode (e.g., ["1a", "1b"])
   words: VocabularyWordState[];
   currentWordIndex: number;
   startTime: number | null;

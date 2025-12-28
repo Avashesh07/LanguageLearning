@@ -25,6 +25,7 @@ const MODE_NAMES: Record<GameMode, string> = {
   'consonant-gradation': 'Consonant Gradation',
   'vocabulary-recall': 'Vocabulary Recall',
   'vocabulary-active-recall': 'Vocabulary Active Recall',
+  'vocabulary-memorise': 'Opettele',
   'cases-fill-blank': 'Cases Fill in the Blank',
   'reading': 'Reading Comprehension',
 };
@@ -45,6 +46,7 @@ export function ResultsScreen({
   // Handle different modes
   const isGradationMode = mode === 'consonant-gradation';
   const isVocabularyMode = mode === 'vocabulary-recall' || mode === 'vocabulary-active-recall';
+  const isMemoriseMode = mode === 'vocabulary-memorise';
   const isCasesMode = mode === 'cases-fill-blank';
   const isReadingMode = mode === 'reading';
   
@@ -63,7 +65,7 @@ export function ResultsScreen({
     wrongCount = gradationSession.wrongCount;
     totalQuestions = gradationSession.currentQuestionIndex || 1; // Fallback if not tracked
     accuracy = totalQuestions > 0 ? Math.round(((totalQuestions - wrongCount) / totalQuestions) * 100) : 100;
-  } else if (isVocabularyMode && vocabularySession) {
+  } else if ((isVocabularyMode || isMemoriseMode) && vocabularySession) {
     timeMs = vocabularySession.endTime! - vocabularySession.startTime!;
     isPerfect = vocabularySession.wrongCount === 0;
     wrongCount = vocabularySession.wrongCount;
@@ -125,7 +127,7 @@ export function ResultsScreen({
         {isPerfect ? 'PERFECT!' : 'COMPLETED'}
       </h1>
 
-      <div className={`results-mode ${isVocabularyMode ? 'vocabulary' : ''} ${isCasesMode ? 'cases' : ''} ${isReadingMode ? 'reading' : ''}`}>
+      <div className={`results-mode ${isVocabularyMode || isMemoriseMode ? 'vocabulary' : ''} ${isCasesMode ? 'cases' : ''} ${isReadingMode ? 'reading' : ''}`}>
         {isCasesMode && <MapPinIcon size={20} />}
         {isReadingMode && <NewspaperIcon size={20} />}
         {MODE_NAMES[mode]}
@@ -222,12 +224,13 @@ export function ResultsScreen({
       )}
 
 
+      {/* Memorise mode chunk info */}
       <div className="results-actions">
         <button onClick={onPlayAgain} className="primary">
-          Play Again
+          {isMemoriseMode ? 'Aloita alusta' : 'Play Again'}
         </button>
         <button onClick={onReturnToMenu}>
-          Menu
+          {isMemoriseMode ? 'Valikko' : 'Menu'}
         </button>
       </div>
     </div>
