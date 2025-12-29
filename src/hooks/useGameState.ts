@@ -18,8 +18,6 @@ import type {
   CaseSentenceState,
   CaseCategory,
   ReadingSessionState,
-  VocabularySource,
-  SM2ChapterProgress,
   SM2CycleProgress,
 } from '../types';
 import { getArticleById, type YleArticle } from '../data/yleArticles';
@@ -27,7 +25,7 @@ import { getVerbsForLevels, verbsByLevel, verbTypeInfo, negativeInfo, getRandomS
 import { getAllRules, createPracticeQuestions, type GradationRule } from '../data/consonantGradation';
 import { saveToCSV, loadFromCSV } from '../utils/csvDatabase';
 import { getWordsForTavoites, getAllTavoites, getWordCountForTavoites } from '../data/tavoiteVocabulary';
-import { getAllSM2Chapters, getWordsForSM2Chapters, getSM2WordCountForChapters, getWordsForSM2Cycles, getSM2WordCountForCycles, getAllSM2Cycles, getSM2CyclesForChapter, type SM2Chapter } from '../data/suomenMestari2';
+import { getAllSM2Chapters, getSM2WordCountForChapters, getWordsForSM2Cycles, getSM2WordCountForCycles, getAllSM2Cycles, getSM2CyclesForChapter } from '../data/suomenMestari2';
 import { getSentencesByCategory, CASES, CASE_GROUPS, getCaseEndingExplanation, type CaseSentence } from '../data/finnishCases';
 
 const STORAGE_KEY = 'finnish-verb-arena-v4';

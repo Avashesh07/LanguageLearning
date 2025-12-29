@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import type { GameMode, PlayerState, VerbLevel, CaseCategory } from '../types';
 import { verbsByLevel } from '../data/verbs';
 import type { Tavoite } from '../data/tavoiteVocabulary';
-import type { SM2Chapter } from '../data/suomenMestari2';
-import { getSM2CyclesForChapter, type SM2Cycle } from '../data/suomenMestari2';
+import type { SM2Chapter, SM2Cycle } from '../data/suomenMestari2';
 import type { CaseGroup } from '../data/finnishCases';
 import { getArticlesByLevel, getYleNewsArticles, type YleArticle } from '../data/yleArticles';
 import { TargetIcon, BookIcon, OpenBookIcon, PencilIcon, CheckIcon, MapPinIcon, GlobeIcon, NewspaperIcon } from './Icons';
@@ -29,8 +28,9 @@ interface MenuProps {
   // Suomen Mestari 2 props
   selectedSM2Chapters: number[];
   onSelectSM2Chapters: (chapters: number[]) => void;
-  onStartSM2Session: (mode: 'vocabulary-recall' | 'vocabulary-active-recall', chapters: number[]) => void;
+  onStartSM2Session: (mode: 'vocabulary-recall' | 'vocabulary-active-recall', cycleIds: string[]) => void;
   onStartSM2MemoriseSession: (cycleIds: string[]) => void;
+  onStartSM2Study: (cycleIds: string[]) => void;
   getSM2WordCount: (chapters: number[]) => number;
   getSM2CycleWordCount: (cycleIds: string[]) => number;
   allSM2Chapters: SM2Chapter[];
@@ -72,6 +72,7 @@ export function Menu({
   onSelectSM2Chapters,
   onStartSM2Session,
   onStartSM2MemoriseSession,
+  onStartSM2Study,
   getSM2WordCount,
   getSM2CycleWordCount,
   allSM2Chapters,
@@ -703,6 +704,24 @@ export function Menu({
 
               {/* SM2 Game Modes */}
               <div className="menu-modes vocabulary-modes sm2-modes">
+                <button
+                  className="mode-button sm2 study"
+                  onClick={() => {
+                    if (selectedSM2Cycles.length > 0) {
+                      onStartSM2Study(selectedSM2Cycles);
+                    }
+                  }}
+                  disabled={selectedSM2Cycles.length === 0}
+                >
+                  <div className="mode-info">
+                    <span className="mode-name">📖 Katsele</span>
+                    <span className="mode-desc">Katso kaikki sanat ennen opettelua</span>
+                  </div>
+                  <div className="mode-best">
+                    <span className="word-count">{selectedSM2Cycles.length > 0 ? sm2CycleWordCount : 0} sanaa</span>
+                  </div>
+                </button>
+
                 <button
                   className="mode-button sm2 memorise"
                   onClick={() => {

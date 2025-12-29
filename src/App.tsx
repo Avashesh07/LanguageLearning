@@ -4,9 +4,12 @@ import { useGameState, formatTime } from './hooks/useGameState';
 import { Menu } from './components/Menu';
 import { GameScreen } from './components/GameScreen';
 import { ResultsScreen } from './components/ResultsScreen';
+import { StudyScreen } from './components/StudyScreen';
+import { getSM2CycleById } from './data/suomenMestari2';
 
 function App() {
   const [lastActiveTab, setLastActiveTab] = useState<'verbs' | 'vocabulary' | 'cases' | 'reading'>('verbs');
+  const [studyMode, setStudyMode] = useState<{ active: boolean; cycleIds: string[] }>({ active: false, cycleIds: [] });
   const {
     state,
     selectedLevels,
@@ -76,11 +79,14 @@ function App() {
   }, [state.mode]);
 
   const handlePlayAgain = () => {
-    if (state.mode === 'vocabulary-recall' || state.mode === 'vocabulary-active-recall' || state.mode === 'vocabulary-memorise') {
-      // Regular vocabulary (Tavoite or SM2)
-      if (state.vocabularySession?.source === 'suomen-mestari-2' && state.mode === 'vocabulary-memorise') {
+    if (state.mode === 'vocabulary-memorise') {
+      // Memorise mode (only SM2)
+      if (state.vocabularySession?.source === 'suomen-mestari-2') {
         startSM2MemoriseSession(state.vocabularySession.selectedCycles || []);
-      } else if (state.vocabularySession?.source === 'suomen-mestari-2') {
+      }
+    } else if (state.mode === 'vocabulary-recall' || state.mode === 'vocabulary-active-recall') {
+      // Regular vocabulary (Tavoite or SM2)
+      if (state.vocabularySession?.source === 'suomen-mestari-2') {
         startSM2Session(state.mode, state.vocabularySession.selectedCycles || []);
       } else {
         startVocabularySession(state.mode, selectedTavoites);
@@ -94,6 +100,38 @@ function App() {
       startSession(state.mode, selectedLevels);
     }
   };
+
+  const handleStartStudy = (cycleIds: string[]) => {
+    setStudyMode({ active: true, cycleIds });
+  };
+
+  const handleCloseStudy = () => {
+    setStudyMode({ active: false, cycleIds: [] });
+  };
+
+  const handleStartMemorizeFromStudy = () => {
+    const cycleIds = studyMode.cycleIds;
+    setStudyMode({ active: false, cycleIds: [] });
+    startSM2MemoriseSession(cycleIds);
+  };
+
+  // Get cycles for study mode
+  const studyCycles = studyMode.cycleIds
+    .map(id => getSM2CycleById(id))
+    .filter((c): c is NonNullable<typeof c> => c !== undefined);
+
+  // Show study screen if active
+  if (studyMode.active && studyCycles.length > 0) {
+    return (
+      <div className="app">
+        <StudyScreen
+          cycles={studyCycles}
+          onClose={handleCloseStudy}
+          onStartMemorize={handleStartMemorizeFromStudy}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="app">
@@ -119,6 +157,7 @@ function App() {
           onSelectSM2Chapters={setSelectedSM2Chapters}
           onStartSM2Session={startSM2Session}
           onStartSM2MemoriseSession={startSM2MemoriseSession}
+          onStartSM2Study={handleStartStudy}
           getSM2WordCount={getSM2WordCount}
           getSM2CycleWordCount={getSM2CycleWordCount}
           allSM2Chapters={allSM2Chapters}

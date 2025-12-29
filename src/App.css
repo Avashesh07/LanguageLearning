@@ -1455,6 +1455,20 @@
   color: #4aa8c8;
 }
 
+.mode-button.sm2.study {
+  border-color: #0ea5e9;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.1) 0%, rgba(3, 105, 161, 0.1) 100%);
+}
+
+.mode-button.sm2.study:hover {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.2) 0%, rgba(3, 105, 161, 0.2) 100%);
+  border-color: #38bdf8;
+}
+
+.mode-button.sm2.study .mode-name {
+  color: #38bdf8;
+}
+
 .mode-button.sm2.memorise {
   border-color: #9333ea;
   background: linear-gradient(135deg, rgba(147, 51, 234, 0.1) 0%, rgba(88, 28, 135, 0.1) 100%);
@@ -3148,5 +3162,700 @@
   .reading-complete-section {
     flex-direction: column;
     text-align: center;
+  }
+}
+
+/* ======================= */
+/* STUDY SCREEN STYLES     */
+/* ======================= */
+
+.study-screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--bg-primary);
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.study-header {
+  position: sticky;
+  top: 0;
+  background: var(--bg-primary);
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 1rem;
+  z-index: 10;
+}
+
+.study-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.study-back-btn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+}
+
+.study-back-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.study-title {
+  font-size: 1.5rem;
+  color: var(--highlight-amber);
+  margin: 0;
+  text-align: center;
+  flex: 1;
+}
+
+.study-start-btn {
+  background: linear-gradient(135deg, #4caf50, #45a049);
+  border: none;
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.study-start-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.study-start-btn.large {
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  width: 100%;
+  max-width: 400px;
+}
+
+.study-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.study-search {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+}
+
+.study-search-input {
+  width: 100%;
+  padding: 0.6rem 2.5rem 0.6rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.study-search-input:focus {
+  outline: none;
+  border-color: var(--highlight-amber);
+}
+
+.study-clear-search {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.9rem;
+}
+
+.study-toggles {
+  display: flex;
+  gap: 1rem;
+}
+
+.study-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.study-toggle input {
+  accent-color: var(--highlight-amber);
+}
+
+.study-expand-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.study-stats {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.study-stat-divider {
+  color: var(--border-color);
+}
+
+.study-stat.search-result {
+  color: var(--highlight-amber);
+}
+
+.study-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.study-cycle {
+  margin-bottom: 1rem;
+}
+
+.study-cycle-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.study-cycle-header:hover {
+  background: var(--bg-tertiary, rgba(255,255,255,0.05));
+}
+
+.study-cycle-header.expanded {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: transparent;
+}
+
+.study-cycle-expand-icon {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  width: 1rem;
+}
+
+.study-cycle-name {
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  font-weight: 600;
+  flex: 1;
+}
+
+.study-cycle-count {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.study-word-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+}
+
+.study-search-results .study-word-grid {
+  border-radius: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+.search-results-title {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  margin-bottom: 1rem;
+}
+
+.study-word-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  transition: all 0.2s;
+}
+
+.study-word-card:hover {
+  border-color: var(--highlight-amber);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.study-word-card.search-result {
+  position: relative;
+}
+
+.study-word-cycle-badge {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: var(--highlight-amber);
+  color: var(--bg-primary);
+  font-size: 0.65rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.study-word-finnish {
+  font-size: 1.1rem;
+  color: var(--highlight-amber);
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.study-word-english {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.study-word-synonyms {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-bottom: 0.25rem;
+}
+
+.study-word-finnish-synonyms {
+  font-size: 0.8rem;
+  color: var(--accent-teal);
+  margin-bottom: 0.25rem;
+}
+
+.study-word-note {
+  font-size: 0.75rem;
+  color: var(--accent-teal);
+  background: rgba(0, 188, 212, 0.1);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  margin-top: 0.5rem;
+}
+
+.study-word-verb-type {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  display: inline-block;
+  margin-top: 0.25rem;
+}
+
+.study-word-case {
+  font-size: 0.7rem;
+  color: #ab47bc;
+  background: rgba(171, 71, 188, 0.1);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  display: inline-block;
+  margin-top: 0.25rem;
+  margin-left: 0.25rem;
+}
+
+.study-footer {
+  position: sticky;
+  bottom: 0;
+  background: var(--bg-primary);
+  padding: 1rem 0;
+  border-top: 1px solid var(--border-color);
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+}
+
+/* View Mode Toggle */
+.study-view-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.view-toggle-btn {
+  padding: 0.6rem 1.2rem;
+  border: 2px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 25px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+}
+
+.view-toggle-btn:hover {
+  border-color: var(--highlight-amber);
+  color: var(--text-primary);
+}
+
+.view-toggle-btn.active {
+  background: var(--highlight-amber);
+  border-color: var(--highlight-amber);
+  color: var(--bg-primary);
+  font-weight: 600;
+}
+
+/* Flashcard View */
+.flashcard-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 1rem;
+}
+
+.flashcard {
+  width: 100%;
+  max-width: 400px;
+  height: 280px;
+  perspective: 1000px;
+  cursor: pointer;
+  margin-bottom: 2rem;
+}
+
+.flashcard-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+}
+
+.flashcard.flipped .flashcard-inner {
+  transform: rotateY(180deg);
+}
+
+.flashcard-front,
+.flashcard-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.flashcard-front {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border: 2px solid var(--highlight-amber);
+}
+
+.flashcard-back {
+  background: linear-gradient(135deg, #0f3460 0%, #16213e 100%);
+  border: 2px solid #4caf50;
+  transform: rotateY(180deg);
+}
+
+.flashcard-cycle-badge {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.flashcard-word {
+  font-size: 2rem;
+  color: var(--highlight-amber);
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.flashcard-hint {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-top: 1rem;
+  opacity: 0.7;
+}
+
+.flashcard-translation {
+  font-size: 1.8rem;
+  color: #4caf50;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.flashcard-synonyms {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  text-align: center;
+  font-style: italic;
+}
+
+.flashcard-finnish-alt {
+  font-size: 0.95rem;
+  color: var(--accent-teal);
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
+.flashcard-note {
+  font-size: 0.85rem;
+  color: var(--accent-teal);
+  background: rgba(0, 188, 212, 0.1);
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.flashcard-verb-type,
+.flashcard-case {
+  position: absolute;
+  bottom: 1rem;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.flashcard-verb-type {
+  left: 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+}
+
+.flashcard-case {
+  right: 1rem;
+  background: rgba(171, 71, 188, 0.2);
+  color: #ab47bc;
+}
+
+.flashcard-nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  max-width: 400px;
+}
+
+.flashcard-nav-btn {
+  padding: 0.75rem 1.25rem;
+  border: none;
+  border-radius: 25px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.flashcard-nav-btn.prev {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.flashcard-nav-btn.next {
+  background: var(--highlight-amber);
+  color: var(--bg-primary);
+}
+
+.flashcard-nav-btn:hover {
+  transform: scale(1.05);
+}
+
+.flashcard-nav-btn:active {
+  transform: scale(0.98);
+}
+
+.flashcard-progress {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-secondary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.flashcard-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--highlight-amber), #4caf50);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* Responsive Study Screen */
+@media (max-width: 600px) {
+  .study-screen {
+    padding: 0.5rem;
+  }
+  
+  .study-header {
+    padding: 0.75rem 0;
+  }
+  
+  .study-header-top {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  
+  .study-back-btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+  }
+  
+  .study-title {
+    font-size: 1.2rem;
+    flex: 1;
+    min-width: 100px;
+  }
+  
+  .study-start-btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+  }
+  
+  .study-view-toggle {
+    margin-bottom: 0.75rem;
+  }
+  
+  .view-toggle-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+  }
+  
+  .study-controls {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .study-search {
+    width: 100%;
+  }
+  
+  .study-toggles {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .study-expand-controls {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .study-word-grid {
+    grid-template-columns: 1fr;
+    padding: 0.75rem;
+    gap: 0.5rem;
+  }
+  
+  /* Flashcard mobile */
+  .flashcard-container {
+    min-height: 50vh;
+    padding: 0.5rem;
+  }
+  
+  .flashcard {
+    max-width: 100%;
+    height: 240px;
+    margin-bottom: 1.5rem;
+  }
+  
+  .flashcard-front,
+  .flashcard-back {
+    padding: 1rem;
+  }
+  
+  .flashcard-word {
+    font-size: 1.6rem;
+  }
+  
+  .flashcard-translation {
+    font-size: 1.4rem;
+  }
+  
+  .flashcard-nav {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  
+  .flashcard-nav-btn {
+    padding: 0.6rem 1rem;
+    font-size: 0.85rem;
+  }
+  
+  .flashcard-progress {
+    order: -1;
+    width: 100%;
+    flex: none;
+  }
+  
+  .study-footer {
+    padding: 0.75rem 0;
+  }
+  
+  .study-start-btn.large {
+    padding: 0.85rem 1.5rem;
+    font-size: 1rem;
+  }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+  .flashcard {
+    /* Larger touch target */
+    min-height: 260px;
+  }
+  
+  .flashcard-nav-btn {
+    min-height: 48px;
+    min-width: 100px;
+  }
+  
+  .study-word-card {
+    padding: 1rem;
+  }
+  
+  .study-cycle-header {
+    padding: 1rem;
+    min-height: 56px;
+  }
+  
+  .view-toggle-btn {
+    min-height: 44px;
   }
 }
