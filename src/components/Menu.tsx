@@ -148,25 +148,6 @@ export function Menu({
   // Vocabulary sub-tab state (Kurssin Arvostelu vs Suomen Mestari 2)
   const [vocabSubTab, setVocabSubTab] = useState<'kurssin' | 'sm2'>('sm2');
 
-  // Suomen Mestari 2 functions
-  const toggleSM2Chapter = (chapterId: number) => {
-    if (selectedSM2Chapters.includes(chapterId)) {
-      if (selectedSM2Chapters.length > 1) {
-        onSelectSM2Chapters(selectedSM2Chapters.filter((c) => c !== chapterId));
-      }
-    } else {
-      onSelectSM2Chapters([...selectedSM2Chapters, chapterId]);
-    }
-  };
-
-  const selectAllSM2Chapters = () => {
-    onSelectSM2Chapters(allSM2Chapters.map(c => c.id));
-  };
-
-  const clearSM2Selection = () => {
-    onSelectSM2Chapters([allSM2Chapters[0].id]);
-  };
-
   // Cycle selection for memorise mode
   const [selectedSM2Cycles, setSelectedSM2Cycles] = useState<string[]>([]);
 
@@ -186,7 +167,6 @@ export function Menu({
     setSelectedSM2Cycles([]);
   };
 
-  const sm2WordCount = getSM2WordCount(selectedSM2Chapters);
   const sm2CycleWordCount = getSM2CycleWordCount(selectedSM2Cycles);
 
   const vocabularyWordCount = getTavoiteWordCount(selectedTavoites);
