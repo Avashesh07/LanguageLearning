@@ -21,9 +21,9 @@ export const verbTypeInfo: Record<number, {
   },
   3: {
     name: 'Type 3 (tulla)',
-    rule: 'Remove -la/-lä/-na/-nä/-ra/-rä/-sta/-stä. Add -e- before endings: -n, -t, -ee, -mme, -tte, -evat',
-    stemRule: 'tulla → tul- → tulen, tulet, tulee, tulemme, tulette, tulevat',
-    examples: ['tulla', 'mennä', 'olla', 'opiskella', 'ajatella'],
+    rule: 'Remove -la/-lä, -na/-nä, -ra/-rä, or -sta/-stä. Add -e- before endings: -n, -t, -ee, -mme, -tte, -evat',
+    stemRule: 'tulla → tul- → tulen | mennä → men- → menen | purra → pur- → puren | nousta → nous- → nousen',
+    examples: ['tulla', 'mennä', 'panna', 'purra', 'nousta', 'pestä', 'juosta'],
   },
   4: {
     name: 'Type 4 (haluta)',
@@ -686,6 +686,63 @@ const a2Verbs: Verb[] = [
     forms: {
       present: { minä: 'työskentelen', sinä: 'työskentelet', hän: 'työskentelee', me: 'työskentelemme', te: 'työskentelette', he: 'työskentelevät' },
       negative: { minä: 'en työskentele', sinä: 'et työskentele', hän: 'ei työskentele', me: 'emme työskentele', te: 'ette työskentele', he: 'eivät työskentele' },
+    }
+  },
+  // Type 3 -sta/-stä verbs
+  { 
+    infinitive: 'nousta', type: 3, translation: 'to rise/get up', synonyms: ['rise', 'get up', 'stand up'], level: 'A2',
+    forms: {
+      present: { minä: 'nousen', sinä: 'nouset', hän: 'nousee', me: 'nousemme', te: 'nousette', he: 'nousevat' },
+      negative: { minä: 'en nouse', sinä: 'et nouse', hän: 'ei nouse', me: 'emme nouse', te: 'ette nouse', he: 'eivät nouse' },
+      imperfect: { minä: 'nousin', sinä: 'nousit', hän: 'nousi', me: 'nousimme', te: 'nousitte', he: 'nousivat' },
+      imperfectNegative: { minä: 'en noussut', sinä: 'et noussut', hän: 'ei noussut', me: 'emme nousseet', te: 'ette nousseet', he: 'eivät nousseet' },
+    }
+  },
+  { 
+    infinitive: 'pestä', type: 3, translation: 'to wash', synonyms: ['wash', 'clean'], level: 'A2',
+    forms: {
+      present: { minä: 'pesen', sinä: 'peset', hän: 'pesee', me: 'pesemme', te: 'pesette', he: 'pesevät' },
+      negative: { minä: 'en pese', sinä: 'et pese', hän: 'ei pese', me: 'emme pese', te: 'ette pese', he: 'eivät pese' },
+      imperfect: { minä: 'pesin', sinä: 'pesit', hän: 'pesi', me: 'pesimme', te: 'pesitte', he: 'pesivät' },
+      imperfectNegative: { minä: 'en pessyt', sinä: 'et pessyt', hän: 'ei pessyt', me: 'emme pesseet', te: 'ette pesseet', he: 'eivät pesseet' },
+    }
+  },
+  { 
+    infinitive: 'juosta', type: 3, translation: 'to run', synonyms: ['run'], level: 'A2',
+    forms: {
+      present: { minä: 'juoksen', sinä: 'juokset', hän: 'juoksee', me: 'juoksemme', te: 'juoksette', he: 'juoksevat' },
+      negative: { minä: 'en juokse', sinä: 'et juokse', hän: 'ei juokse', me: 'emme juokse', te: 'ette juokse', he: 'eivät juokse' },
+      imperfect: { minä: 'juoksin', sinä: 'juoksit', hän: 'juoksi', me: 'juoksimme', te: 'juoksitte', he: 'juoksivat' },
+      imperfectNegative: { minä: 'en juossut', sinä: 'et juossut', hän: 'ei juossut', me: 'emme juosseet', te: 'ette juosseet', he: 'eivät juosseet' },
+    }
+  },
+  // Type 3 -rra/-rrä verbs
+  { 
+    infinitive: 'purra', type: 3, translation: 'to bite', synonyms: ['bite'], level: 'A2',
+    forms: {
+      present: { minä: 'puren', sinä: 'puret', hän: 'puree', me: 'puremme', te: 'purette', he: 'purevat' },
+      negative: { minä: 'en pure', sinä: 'et pure', hän: 'ei pure', me: 'emme pure', te: 'ette pure', he: 'eivät pure' },
+      imperfect: { minä: 'purin', sinä: 'purit', hän: 'puri', me: 'purimme', te: 'puritte', he: 'purivat' },
+      imperfectNegative: { minä: 'en purrut', sinä: 'et purrut', hän: 'ei purrut', me: 'emme purreet', te: 'ette purreet', he: 'eivät purreet' },
+    }
+  },
+  { 
+    infinitive: 'surra', type: 3, translation: 'to grieve/mourn', synonyms: ['grieve', 'mourn'], level: 'A2',
+    forms: {
+      present: { minä: 'suren', sinä: 'suret', hän: 'suree', me: 'suremme', te: 'surette', he: 'surevat' },
+      negative: { minä: 'en sure', sinä: 'et sure', hän: 'ei sure', me: 'emme sure', te: 'ette sure', he: 'eivät sure' },
+      imperfect: { minä: 'surin', sinä: 'surit', hän: 'suri', me: 'surimme', te: 'suritte', he: 'surivat' },
+      imperfectNegative: { minä: 'en surrut', sinä: 'et surrut', hän: 'ei surrut', me: 'emme surreet', te: 'ette surreet', he: 'eivät surreet' },
+    }
+  },
+  // Type 3 -nna/-nnä verbs
+  { 
+    infinitive: 'panna', type: 3, translation: 'to put', synonyms: ['put', 'place'], level: 'A2',
+    forms: {
+      present: { minä: 'panen', sinä: 'panet', hän: 'panee', me: 'panemme', te: 'panette', he: 'panevat' },
+      negative: { minä: 'en pane', sinä: 'et pane', hän: 'ei pane', me: 'emme pane', te: 'ette pane', he: 'eivät pane' },
+      imperfect: { minä: 'panin', sinä: 'panit', hän: 'pani', me: 'panimme', te: 'panitte', he: 'panivat' },
+      imperfectNegative: { minä: 'en pannut', sinä: 'et pannut', hän: 'ei pannut', me: 'emme panneet', te: 'ette panneet', he: 'eivät panneet' },
     }
   },
   { 

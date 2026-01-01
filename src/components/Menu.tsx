@@ -491,7 +491,7 @@ export function Menu({
               className={`vocab-sub-tab ${vocabSubTab === 'kurssin' ? 'active' : ''}`}
               onClick={() => setVocabSubTab('kurssin')}
             >
-              📚 Kurssin Arvostelu
+              📚 Berlitz Suomi 1
             </button>
           </div>
 
