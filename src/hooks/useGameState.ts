@@ -17,16 +17,21 @@ import type {
   CasesSessionState,
   CaseSentenceState,
   CaseCategory,
-  ReadingSessionState,
   SM2CycleProgress,
+  VerbTypeSessionState,
+  VerbTypeFormState,
+  VerbTypeVerbState,
+  PartitiveRule,
+  PartitiveSessionState,
+  PartitiveWordState,
 } from '../types';
-import { getArticleById, type YleArticle } from '../data/yleArticles';
-import { getVerbsForLevels, verbsByLevel, verbTypeInfo, negativeInfo, getRandomSentence, getRandomImperfectSentence } from '../data/verbs';
+import { verbs, verbTypeInfo, negativeInfo, getRandomSentence, getRandomImperfectSentence, persons, getVerbsForLevels } from '../data/verbs';
 import { getAllRules, createPracticeQuestions, type GradationRule } from '../data/consonantGradation';
 import { saveToCSV, loadFromCSV } from '../utils/csvDatabase';
 import { getWordsForTavoites, getAllTavoites, getWordCountForTavoites } from '../data/tavoiteVocabulary';
 import { getAllSM2Chapters, getSM2WordCountForChapters, getWordsForSM2Cycles, getSM2WordCountForCycles, getAllSM2Cycles, getSM2CyclesForChapter } from '../data/suomenMestari2';
 import { getSentencesByCategory, CASES, CASE_GROUPS, getCaseEndingExplanation, type CaseSentence } from '../data/finnishCases';
+import { PARTITIVE_RULES, getWordsForRules, getRuleInfo } from '../data/partitiveData';
 
 const STORAGE_KEY = 'finnish-verb-arena-v4';
 
@@ -34,15 +39,13 @@ const PERSONS: Person[] = ['minä', 'sinä', 'hän', 'me', 'te', 'he'];
 
 type GameAction =
   | { type: 'START_SESSION'; mode: GameMode; levels: VerbLevel[] }
+  | { type: 'START_VERB_TYPE_SESSION'; tense: 'present' | 'imperfect'; types: number[] }
   | { type: 'START_VOCABULARY_SESSION'; mode: 'vocabulary-recall' | 'vocabulary-active-recall'; tavoites: number[]; source: 'kurssin-arvostelu' }
   | { type: 'START_SM2_SESSION'; mode: 'vocabulary-recall' | 'vocabulary-active-recall'; cycleIds: string[] }
   | { type: 'START_SM2_MEMORISE_SESSION'; cycleIds: string[] }
   | { type: 'START_CASES_SESSION'; categories: CaseCategory[] }
-  | { type: 'START_READING_SESSION'; article: YleArticle }
+  | { type: 'START_PARTITIVE_SESSION'; rules: PartitiveRule[] }
   | { type: 'SUBMIT_ANSWER'; answer: string }
-  | { type: 'SUBMIT_READING_ANSWER'; questionIndex: number; answerIndex: number }
-  | { type: 'TOGGLE_READING_VOCABULARY' }
-  | { type: 'FINISH_READING' }
   | { type: 'NEXT_VERB' }
   | { type: 'CLEAR_FEEDBACK' }
   | { type: 'RETURN_TO_MENU' }
@@ -155,7 +158,7 @@ function getInitialState(): GameState {
     currentVocabularyWord: undefined,
     casesSession: undefined,
     currentCaseSentence: undefined,
-    readingSession: undefined,
+    verbTypeSession: undefined,
   };
 }
 
@@ -577,6 +580,61 @@ function downloadCSV(records: TimeRecord[]): void {
 
 let currentSessionLevels: VerbLevel[] = [];
 
+// Verb Type Arena Helpers
+function createVerbTypeSession(tense: 'present' | 'imperfect', types: number[]): VerbTypeSessionState {
+  const verbsForTypes = verbs.filter(v => types.includes(v.type) && v.forms);
+  const shuffledVerbs = [...verbsForTypes].sort(() => Math.random() - 0.5);
+  
+  const verbStates: VerbTypeVerbState[] = shuffledVerbs.map(verb => {
+    const formsKey = tense === 'present' ? 'present' : 'imperfect';
+    const verbForms = verb.forms?.[formsKey];
+    
+    if (!verbForms) {
+      return {
+        infinitive: verb.infinitive,
+        translation: verb.translation,
+        verbType: verb.type,
+        forms: [],
+        currentFormIndex: 0,
+        completed: true, // Skip verbs without forms
+        wrongCount: 0,
+      };
+    }
+    
+    const formStates: VerbTypeFormState[] = persons.map(person => ({
+      person,
+      correctForm: verbForms[person],
+      userAnswer: null,
+      isCorrect: null,
+    }));
+    
+    return {
+      infinitive: verb.infinitive,
+      translation: verb.translation,
+      verbType: verb.type,
+      forms: formStates,
+      currentFormIndex: 0,
+      completed: false,
+      wrongCount: 0,
+    };
+  }).filter(v => v.forms.length > 0); // Filter out verbs without forms
+  
+  return {
+    mode: tense === 'present' ? 'verb-type-present' : 'verb-type-imperfect',
+    selectedTypes: types,
+    verbs: verbStates,
+    currentVerbIndex: 0,
+    startTime: Date.now(),
+    endTime: null,
+    totalWrongCount: 0,
+    isComplete: false,
+  };
+}
+
+function getVerbsByTypes(types: number[]): typeof verbs {
+  return verbs.filter(v => types.includes(v.type));
+}
+
 // Consonant Gradation Helpers
 function createGradationSession(): ConsonantGradationSessionState {
   return {
@@ -703,6 +761,28 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
 
+    case 'START_VERB_TYPE_SESSION': {
+      const verbTypeSession = createVerbTypeSession(action.tense, action.types);
+      
+      return {
+        ...state,
+        mode: verbTypeSession.mode,
+        session: null,
+        currentVerb: null,
+        feedback: null,
+        currentPerson: undefined,
+        currentPolarity: undefined,
+        currentSentence: undefined,
+        currentGradationQuestion: undefined,
+        gradationSession: undefined,
+        vocabularySession: undefined,
+        currentVocabularyWord: undefined,
+        casesSession: undefined,
+        currentCaseSentence: undefined,
+        verbTypeSession,
+      };
+    }
+
     case 'START_VOCABULARY_SESSION': {
       const vocabularySession = createVocabularySession(action.mode, action.tavoites);
       const firstWordIndex = getNextActiveWordIndex(vocabularySession, 0);
@@ -822,33 +902,38 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           sentenceWithBlank: firstSentence.sentenceWithBlank,
           hint: firstSentence.hint,
         } : undefined,
-        readingSession: undefined,
       };
     }
 
-    case 'START_READING_SESSION': {
-      const article = action.article;
-      const readingSession: ReadingSessionState = {
-        mode: 'reading',
-        articleId: article.id,
-        questions: article.questions.map(q => ({
-          questionId: q.id,
-          answered: false,
-          selectedAnswer: null,
-          isCorrect: null,
+    case 'START_PARTITIVE_SESSION': {
+      const wordsForRules = getWordsForRules(action.rules);
+      const shuffledWords = [...wordsForRules].sort(() => Math.random() - 0.5);
+      
+      const partitiveSession: PartitiveSessionState = {
+        mode: 'partitive',
+        selectedRules: action.rules,
+        words: shuffledWords.map(w => ({
+          nominative: w.nominative,
+          partitive: w.partitive,
+          translation: w.translation,
+          rule: w.rule,
+          hint: w.hint,
+          correctCount: 0,
+          wrongCount: 0,
+          eliminated: false,
         })),
-        currentQuestionIndex: 0,
-        showingVocabulary: false,
-        showingTranslation: false,
+        currentWordIndex: 0,
         startTime: Date.now(),
         endTime: null,
         wrongCount: 0,
         isComplete: false,
       };
-
+      
+      const firstWord = shuffledWords[0];
+      
       return {
         ...state,
-        mode: 'reading',
+        mode: 'partitive',
         session: null,
         currentVerb: null,
         feedback: null,
@@ -861,67 +946,86 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         currentVocabularyWord: undefined,
         casesSession: undefined,
         currentCaseSentence: undefined,
-        readingSession,
-      };
-    }
-
-    case 'SUBMIT_READING_ANSWER': {
-      if (!state.readingSession) return state;
-      
-      const { questionIndex, answerIndex } = action;
-      const article = getArticleById(state.readingSession.articleId);
-      if (!article) return state;
-      
-      const question = article.questions[questionIndex];
-      const isCorrect = question.correctAnswer === answerIndex;
-      
-      const newQuestions = [...state.readingSession.questions];
-      newQuestions[questionIndex] = {
-        ...newQuestions[questionIndex],
-        answered: true,
-        selectedAnswer: answerIndex,
-        isCorrect,
-      };
-      
-      const newWrongCount = state.readingSession.wrongCount + (isCorrect ? 0 : 1);
-      const allAnswered = newQuestions.every(q => q.answered);
-      
-      return {
-        ...state,
-        readingSession: {
-          ...state.readingSession,
-          questions: newQuestions,
-          wrongCount: newWrongCount,
-          isComplete: allAnswered,
-          endTime: allAnswered ? Date.now() : null,
-        },
-      };
-    }
-
-    case 'TOGGLE_READING_VOCABULARY': {
-      if (!state.readingSession) return state;
-      return {
-        ...state,
-        readingSession: {
-          ...state.readingSession,
-          showingVocabulary: !state.readingSession.showingVocabulary,
-        },
-      };
-    }
-
-    case 'FINISH_READING': {
-      if (!state.readingSession) return state;
-      return {
-        ...state,
-        readingSession: {
-          ...state.readingSession,
-          isComplete: true,
-          endTime: state.readingSession.endTime || Date.now(),
-        },
+        verbTypeSession: undefined,
+        partitiveSession,
+        currentPartitiveWord: firstWord ? {
+          nominative: firstWord.nominative,
+          partitive: firstWord.partitive,
+          translation: firstWord.translation,
+          rule: firstWord.rule,
+          hint: firstWord.hint,
+        } : undefined,
       };
     }
 
     case 'SUBMIT_ANSWER': {
+      // Handle verb type arena modes
+      if (state.mode === 'verb-type-present' || state.mode === 'verb-type-imperfect') {
+        if (!state.verbTypeSession) return state;
+        
+        const session = state.verbTypeSession;
+        const currentVerb = session.verbs[session.currentVerbIndex];
+        const currentForm = currentVerb.forms[currentVerb.currentFormIndex];
+        
+        const normalizedAnswer = action.answer.trim().toLowerCase();
+        const isCorrect = normalizedAnswer === currentForm.correctForm.toLowerCase();
+        
+        // Update the form state
+        const newForms = [...currentVerb.forms];
+        newForms[currentVerb.currentFormIndex] = {
+          ...currentForm,
+          userAnswer: action.answer,
+          isCorrect,
+        };
+        
+        const newWrongCount = currentVerb.wrongCount + (isCorrect ? 0 : 1);
+        const nextFormIndex = currentVerb.currentFormIndex + 1;
+        const verbCompleted = nextFormIndex >= currentVerb.forms.length;
+        
+        const newVerbState: VerbTypeVerbState = {
+          ...currentVerb,
+          forms: newForms,
+          currentFormIndex: isCorrect ? nextFormIndex : currentVerb.currentFormIndex,
+          completed: verbCompleted && isCorrect,
+          wrongCount: newWrongCount,
+        };
+        
+        const newVerbs = [...session.verbs];
+        newVerbs[session.currentVerbIndex] = newVerbState;
+        
+        const totalWrongCount = session.totalWrongCount + (isCorrect ? 0 : 1);
+        
+        // Check if all verbs are completed
+        const allCompleted = verbCompleted && isCorrect && 
+          newVerbs.every((v, i) => i <= session.currentVerbIndex ? v.completed : true) &&
+          session.currentVerbIndex === newVerbs.length - 1;
+        
+        const newSession: VerbTypeSessionState = {
+          ...session,
+          verbs: newVerbs,
+          totalWrongCount,
+          isComplete: allCompleted,
+          endTime: allCompleted ? Date.now() : null,
+        };
+        
+        // Build feedback
+        const typeInfo = verbTypeInfo[currentVerb.verbType];
+        const feedback: FeedbackData = {
+          isCorrect,
+          userAnswer: action.answer,
+          correctAnswer: currentForm.correctForm,
+          verbType: !isCorrect ? currentVerb.verbType : undefined,
+          verbTypeInfo: !isCorrect ? typeInfo?.name : undefined,
+          rule: !isCorrect ? typeInfo?.rule : undefined,
+        };
+        
+        return {
+          ...state,
+          verbTypeSession: newSession,
+          feedback,
+        };
+      }
+      
       // Handle consonant gradation mode
       if (state.mode === 'consonant-gradation') {
         if (!state.gradationSession) return state;
@@ -1434,6 +1538,58 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
       
+      // Handle partitive mode
+      if (state.mode === 'partitive') {
+        if (!state.partitiveSession || !state.currentPartitiveWord) return state;
+        
+        const partitiveSession = state.partitiveSession;
+        const currentWordState = partitiveSession.words[partitiveSession.currentWordIndex];
+        
+        const normalizedAnswer = action.answer.trim().toLowerCase();
+        const isCorrect = normalizedAnswer === currentWordState.partitive.toLowerCase();
+        
+        const shouldEliminate = isCorrect;
+        
+        const newWordState: PartitiveWordState = {
+          ...currentWordState,
+          correctCount: isCorrect ? currentWordState.correctCount + 1 : currentWordState.correctCount,
+          wrongCount: currentWordState.wrongCount + (isCorrect ? 0 : 1),
+          eliminated: shouldEliminate,
+        };
+        
+        const newWords = [...partitiveSession.words];
+        newWords[partitiveSession.currentWordIndex] = newWordState;
+        
+        const newWrongCount = partitiveSession.wrongCount + (isCorrect ? 0 : 1);
+        const activeCount = newWords.filter(w => !w.eliminated).length;
+        const isComplete = activeCount === 0;
+        
+        const newPartitiveSession: PartitiveSessionState = {
+          ...partitiveSession,
+          words: newWords,
+          wrongCount: newWrongCount,
+          isComplete,
+          endTime: isComplete ? Date.now() : null,
+        };
+        
+        // Build feedback with rule info
+        const ruleInfo = getRuleInfo(currentWordState.rule);
+        
+        const feedback: FeedbackData = {
+          isCorrect,
+          userAnswer: action.answer,
+          correctAnswer: currentWordState.partitive,
+          rule: !isCorrect ? ruleInfo?.formation : undefined,
+          verbTypeInfo: !isCorrect ? ruleInfo?.name : undefined,
+        };
+        
+        return {
+          ...state,
+          partitiveSession: newPartitiveSession,
+          feedback,
+        };
+      }
+      
       // Regular verb modes
       if (!state.session || !state.currentVerb) return state;
 
@@ -1549,6 +1705,41 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'NEXT_VERB': {
+      // Handle verb type arena modes
+      if (state.mode === 'verb-type-present' || state.mode === 'verb-type-imperfect') {
+        if (!state.verbTypeSession) return state;
+        
+        const session = state.verbTypeSession;
+        const currentVerb = session.verbs[session.currentVerbIndex];
+        
+        // If current verb is completed, move to next verb
+        if (currentVerb.completed) {
+          const nextVerbIndex = session.currentVerbIndex + 1;
+          
+          if (nextVerbIndex >= session.verbs.length || session.isComplete) {
+            return {
+              ...state,
+              feedback: null,
+            };
+          }
+          
+          return {
+            ...state,
+            verbTypeSession: {
+              ...session,
+              currentVerbIndex: nextVerbIndex,
+            },
+            feedback: null,
+          };
+        }
+        
+        // Stay on current verb (still has forms to complete)
+        return {
+          ...state,
+          feedback: null,
+        };
+      }
+      
       // Handle consonant gradation mode
       if (state.mode === 'consonant-gradation') {
         if (!state.gradationSession) return state;
@@ -1770,6 +1961,53 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
       
+      // Handle partitive mode
+      if (state.mode === 'partitive') {
+        if (!state.partitiveSession) return state;
+        
+        const session = state.partitiveSession;
+        const activeWords = session.words.filter(w => !w.eliminated);
+        
+        if (activeWords.length === 0 || session.isComplete) {
+          return {
+            ...state,
+            feedback: null,
+          };
+        }
+        
+        // Find next active word
+        let nextIndex = session.currentWordIndex + 1;
+        while (nextIndex < session.words.length && session.words[nextIndex].eliminated) {
+          nextIndex++;
+        }
+        
+        // Wrap around if needed
+        if (nextIndex >= session.words.length) {
+          nextIndex = 0;
+          while (nextIndex < session.words.length && session.words[nextIndex].eliminated) {
+            nextIndex++;
+          }
+        }
+        
+        const nextWord = session.words[nextIndex];
+        
+        return {
+          ...state,
+          partitiveSession: {
+            ...session,
+            currentWordIndex: nextIndex,
+          },
+          currentPartitiveWord: {
+            nominative: nextWord.nominative,
+            partitive: nextWord.partitive,
+            translation: nextWord.translation,
+            rule: nextWord.rule,
+            hint: nextWord.hint,
+          },
+          feedback: null,
+        };
+      }
+      
       // Regular verb modes
       if (!state.session) return state;
 
@@ -1838,7 +2076,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         currentVocabularyWord: undefined,
         casesSession: undefined,
         currentCaseSentence: undefined,
-        readingSession: undefined,
+        verbTypeSession: undefined,
       };
     }
 
@@ -1856,9 +2094,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
 export function useGameState() {
   const [state, dispatch] = useReducer(gameReducer, undefined, getInitialState);
-  const [selectedLevels, setSelectedLevels] = useState<VerbLevel[]>(['A1']);
   const [isLoading, setIsLoading] = useState(true);
   const isInitialLoad = useRef(true);
+  
+  // Verb Type Arena state
+  const [selectedVerbTypes, setSelectedVerbTypes] = useState<number[]>([1]);
 
   // Load state from CSV on initial mount
   useEffect(() => {
@@ -1897,8 +2137,13 @@ export function useGameState() {
     });
   }, [state.player]);
 
-  const startSession = useCallback((mode: GameMode, levels: VerbLevel[]) => {
-    dispatch({ type: 'START_SESSION', mode, levels });
+  // Verb Type Arena functions
+  const startVerbTypeSession = useCallback((tense: 'present' | 'imperfect', types: number[]) => {
+    dispatch({ type: 'START_VERB_TYPE_SESSION', tense, types });
+  }, []);
+  
+  const getVerbCountByTypes = useCallback((types: number[]) => {
+    return getVerbsByTypes(types).filter(v => v.forms).length;
   }, []);
 
   const submitAnswer = useCallback((answer: string) => {
@@ -1932,33 +2177,6 @@ export function useGameState() {
       console.warn('Failed to reset CSV:', error);
     }
   }, []);
-
-  const getVerbCountForLevels = useCallback((levels: VerbLevel[]) => {
-    return getVerbsForLevels(levels).length;
-  }, []);
-
-  const isActiveRecallUnlocked = useCallback((levels: VerbLevel[]) => {
-    return levels.every((level) => {
-      const progress = state.player.levelProgress.find((lp) => lp.level === level);
-      return progress?.recallCompleted;
-    });
-  }, [state.player.levelProgress]);
-
-  const isConjugationUnlocked = useCallback((levels: VerbLevel[]) => {
-    // Conjugation unlocked after completing Active Recall
-    return levels.every((level) => {
-      const progress = state.player.levelProgress.find((lp) => lp.level === level);
-      return progress?.activeRecallCompleted;
-    });
-  }, [state.player.levelProgress]);
-
-  const isImperfectUnlocked = useCallback((levels: VerbLevel[]) => {
-    // Imperfect unlocked after completing Conjugation
-    return levels.every((level) => {
-      const progress = state.player.levelProgress.find((lp) => lp.level === level);
-      return progress?.conjugationCompleted;
-    });
-  }, [state.player.levelProgress]);
 
   // Vocabulary (Kurssin Arvostelu) related
   const [selectedTavoites, setSelectedTavoites] = useState<number[]>([1]);
@@ -2011,42 +2229,32 @@ export function useGameState() {
     }
     return count;
   }, []);
-
-  // Reading session actions
-  const startReadingSession = useCallback((article: YleArticle) => {
-    dispatch({ type: 'START_READING_SESSION', article });
+  
+  // Partitive session actions
+  const [selectedPartitiveRules, setSelectedPartitiveRules] = useState<PartitiveRule[]>(['single-vowel']);
+  
+  const startPartitiveSession = useCallback((rules: PartitiveRule[]) => {
+    dispatch({ type: 'START_PARTITIVE_SESSION', rules });
   }, []);
-
-  const submitReadingAnswer = useCallback((questionIndex: number, answerIndex: number) => {
-    dispatch({ type: 'SUBMIT_READING_ANSWER', questionIndex, answerIndex });
-  }, []);
-
-  const toggleReadingVocabulary = useCallback(() => {
-    dispatch({ type: 'TOGGLE_READING_VOCABULARY' });
-  }, []);
-
-  const finishReading = useCallback(() => {
-    dispatch({ type: 'FINISH_READING' });
+  
+  const getPartitiveWordCount = useCallback((rules: PartitiveRule[]) => {
+    return getWordsForRules(rules).length;
   }, []);
 
   return {
     state,
-    selectedLevels,
-    setSelectedLevels,
-    startSession,
     submitAnswer,
     nextVerb,
     clearFeedback,
     returnToMenu,
     exportTimes,
     resetProgress,
-    getVerbCountForLevels,
-    isActiveRecallUnlocked,
-    isConjugationUnlocked,
-    isImperfectUnlocked,
-    currentSessionLevels,
-    verbsByLevel,
     isLoading,
+    // Verb Type Arena exports
+    selectedVerbTypes,
+    setSelectedVerbTypes,
+    startVerbTypeSession,
+    getVerbCountByTypes,
     // Vocabulary exports (Kurssin Arvostelu)
     selectedTavoites,
     setSelectedTavoites,
@@ -2069,10 +2277,11 @@ export function useGameState() {
     startCasesSession,
     getCasesSentenceCount,
     caseGroups: CASE_GROUPS,
-    // Reading exports
-    startReadingSession,
-    submitReadingAnswer,
-    toggleReadingVocabulary,
-    finishReading,
+    // Partitive exports
+    selectedPartitiveRules,
+    setSelectedPartitiveRules,
+    startPartitiveSession,
+    getPartitiveWordCount,
+    partitiveRules: PARTITIVE_RULES,
   };
 }

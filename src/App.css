@@ -3859,3 +3859,548 @@
     min-height: 44px;
   }
 }
+
+/* =====================================
+   VERB TYPE ARENA STYLES
+   ===================================== */
+
+/* Verb Type Selector in Menu */
+.verb-type-selector {
+  width: 100%;
+  max-width: 500px;
+  margin-bottom: 1.5rem;
+}
+
+.verb-type-selector h3 {
+  font-size: 1.25rem;
+  color: var(--highlight-amber);
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.verb-type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.verb-type-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 1rem;
+  border: 2px solid var(--border-color);
+  background-color: var(--bg-secondary);
+  opacity: 0.6;
+  transition: all 0.2s;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.verb-type-btn:hover {
+  opacity: 0.85;
+  transform: translateY(-2px);
+}
+
+.verb-type-btn.selected {
+  opacity: 1;
+  border-color: var(--highlight-amber);
+  background: rgba(240, 198, 116, 0.1);
+}
+
+.verb-type-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.verb-type-number {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--highlight-amber);
+}
+
+.verb-type-name {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.verb-type-example {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.verb-type-count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+/* Verb Type Game Modes */
+.menu-modes.verb-type-modes {
+  gap: 0.75rem;
+}
+
+.mode-button.verb-type {
+  border-color: var(--highlight-amber);
+  background: linear-gradient(135deg, rgba(240, 198, 116, 0.1), rgba(240, 198, 116, 0.05));
+}
+
+.mode-button.verb-type:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(240, 198, 116, 0.2), rgba(240, 198, 116, 0.1));
+  transform: translateY(-2px);
+}
+
+.mode-button.verb-type:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Verb Type Game Screen */
+.game-screen.verb-type-mode {
+  background: linear-gradient(180deg, var(--bg-primary) 0%, rgba(240, 198, 116, 0.03) 100%);
+}
+
+.game-stats-bar.verb-type-stats {
+  background: rgba(240, 198, 116, 0.08);
+  border: 1px solid rgba(240, 198, 116, 0.2);
+}
+
+.verb-type-prompt-box {
+  background: var(--bg-secondary);
+  border: 2px solid var(--highlight-amber);
+  border-radius: 16px;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.verb-type-prompt-box .verb-type-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.verb-type-prompt-box .verb-infinitive {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--highlight-amber);
+}
+
+.verb-type-prompt-box .verb-translation {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+}
+
+/* Form Progress Tracker */
+.verb-form-progress {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.form-progress-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+
+.form-progress-item.current {
+  background: rgba(240, 198, 116, 0.2);
+  border-color: var(--highlight-amber);
+  color: var(--highlight-amber);
+  font-weight: 600;
+}
+
+.form-progress-item.correct {
+  background: rgba(76, 175, 80, 0.2);
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+}
+
+.form-progress-item.wrong {
+  background: rgba(244, 67, 54, 0.2);
+  border-color: #f44336;
+  color: #f44336;
+}
+
+.form-progress-item .form-person {
+  font-weight: 500;
+}
+
+/* Current Form Prompt */
+.verb-form-prompt {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.verb-form-prompt .form-person-large {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.verb-form-prompt .form-arrow {
+  font-size: 1.5rem;
+  color: var(--highlight-amber);
+}
+
+.verb-form-prompt .form-blank {
+  font-size: 1.75rem;
+  color: var(--text-muted);
+  font-weight: 300;
+}
+
+/* Form Counter */
+.verb-form-counter {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+}
+
+/* Results Screen - Verb Type */
+.results-mode.verb-type {
+  color: var(--highlight-amber);
+}
+
+.results-verb-types {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.results-verb-types .type-badge {
+  background: rgba(240, 198, 116, 0.2);
+  color: var(--highlight-amber);
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* ===== PARTITIVE CASE STYLES ===== */
+
+/* Partitive Reference Card */
+.partitive-info-section {
+  width: 100%;
+  max-width: 600px;
+  margin-bottom: 1.5rem;
+}
+
+.partitive-reference-card {
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+  padding: 1.25rem;
+  text-align: left;
+}
+
+.partitive-reference-card h4 {
+  text-align: center;
+  color: var(--highlight-amber);
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.partitive-ending-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: rgba(240, 198, 116, 0.1);
+  border-radius: 8px;
+}
+
+.ending-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.ending-label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.ending-value {
+  color: var(--highlight-amber);
+  font-weight: 600;
+}
+
+.partitive-uses {
+  margin-bottom: 1rem;
+}
+
+.partitive-uses h5 {
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.partitive-rules {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
+.partitive-rules li {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  padding: 0.25rem 0;
+}
+
+.partitive-rules li strong {
+  color: var(--text-primary);
+}
+
+.partitive-examples h5 {
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.example-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.example-item {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  padding: 0.3rem 0;
+}
+
+.example-item .base {
+  color: var(--text-primary);
+}
+
+.example-item .partitive {
+  color: var(--highlight-amber);
+  font-weight: 600;
+}
+
+/* Partitive Rule Selector */
+.partitive-rule-selector {
+  width: 100%;
+  max-width: 700px;
+  margin-bottom: 1.5rem;
+}
+
+.partitive-rule-selector h3 {
+  font-size: 1.25rem;
+  color: var(--highlight-amber);
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.partitive-rule-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.partitive-rule-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  padding: 0.9rem;
+  border: 2px solid var(--rule-color, var(--border-color));
+  background-color: var(--bg-secondary);
+  opacity: 0.6;
+  transition: all 0.2s;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.partitive-rule-btn:hover {
+  opacity: 0.85;
+  transform: translateY(-2px);
+}
+
+.partitive-rule-btn.selected {
+  opacity: 1;
+  background: rgba(240, 198, 116, 0.1);
+  border-color: var(--rule-color, var(--highlight-amber));
+}
+
+.rule-header {
+  width: 100%;
+}
+
+.rule-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--rule-color, var(--highlight-amber));
+}
+
+.rule-description {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.rule-formation {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.rule-example {
+  font-size: 0.85rem;
+  color: var(--highlight-amber);
+  font-weight: 500;
+}
+
+/* Partitive Game Modes */
+.partitive-modes {
+  width: 100%;
+  max-width: 600px;
+}
+
+.mode-button.partitive {
+  border-color: #9b59b6;
+}
+
+.mode-button.partitive:hover {
+  background: rgba(155, 89, 182, 0.1);
+}
+
+/* Partitive Game Screen */
+.game-screen.partitive-mode {
+  max-width: 600px;
+}
+
+.partitive-stats {
+  justify-content: center;
+}
+
+.partitive-prompt-box {
+  background: var(--bg-secondary);
+  border: 3px solid var(--border-color);
+  padding: 2rem;
+  width: 100%;
+  max-width: 500px;
+  text-align: center;
+}
+
+.partitive-word-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.partitive-nominative {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.partitive-translation {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+}
+
+.partitive-question {
+  margin-bottom: 1rem;
+}
+
+.partitive-label {
+  font-size: 1.25rem;
+  color: var(--highlight-amber);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.partitive-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(240, 198, 116, 0.1);
+  border: 1px solid rgba(240, 198, 116, 0.3);
+  border-radius: 8px;
+  margin-top: 1rem;
+}
+
+.partitive-hint .hint-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.partitive-hint .hint-text {
+  font-size: 0.95rem;
+  color: var(--highlight-amber);
+  font-weight: 500;
+}
+
+/* Results Screen - Partitive */
+.results-mode.partitive {
+  color: #9b59b6;
+}
+
+.results-partitive-rules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.results-partitive-rules .rule-badge {
+  background: rgba(155, 89, 182, 0.2);
+  color: #9b59b6;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+/* Responsive adjustments for partitive */
+@media (max-width: 600px) {
+  .partitive-rule-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .partitive-rules {
+    grid-template-columns: 1fr;
+  }
+  
+  .example-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .partitive-nominative {
+    font-size: 2rem;
+  }
+}

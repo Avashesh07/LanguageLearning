@@ -33,9 +33,15 @@ export const verbTypeInfo: Record<number, {
   },
   5: {
     name: 'Type 5 (tarvita)',
-    rule: 'Remove -ta/-tä. Add -tse- before endings',
+    rule: 'Remove -ta/-tä. Add -tse- before endings. Ending: -ita/-itä → -itse-',
     stemRule: 'tarvita → tarvitse- → tarvitsen, tarvitset, tarvitsee, tarvitsemme, tarvitsette, tarvitsevat',
-    examples: ['tarvita', 'valita', 'merkitä', 'häiritä'],
+    examples: ['tarvita', 'valita', 'merkitä', 'häiritä', 'havaita'],
+  },
+  6: {
+    name: 'Type 6 (vanheta)',
+    rule: 'Remove -ta/-tä. Add -ne- before endings. Ending: -eta/-etä → -ene-',
+    stemRule: 'vanheta → vanhene- → vanhenen, vanhenet, vanhenee, vanhenemme, vanhenette, vanhenevat',
+    examples: ['vanheta', 'lämmetä', 'kylmetä', 'paeta', 'rohjeta'],
   },
 };
 
@@ -517,6 +523,106 @@ const a2Verbs: Verb[] = [
     forms: {
       present: { minä: 'valitsen', sinä: 'valitset', hän: 'valitsee', me: 'valitsemme', te: 'valitsette', he: 'valitsevat' },
       negative: { minä: 'en valitse', sinä: 'et valitse', hän: 'ei valitse', me: 'emme valitse', te: 'ette valitse', he: 'eivät valitse' },
+    }
+  },
+  // More Type 5 verbs (-ita/-itä → -itse-)
+  { 
+    infinitive: 'merkitä', type: 5, translation: 'to mean, to mark', synonyms: ['mean', 'mark', 'signify'], level: 'A2',
+    forms: {
+      present: { minä: 'merkitsen', sinä: 'merkitset', hän: 'merkitsee', me: 'merkitsemme', te: 'merkitsette', he: 'merkitsevät' },
+      negative: { minä: 'en merkitse', sinä: 'et merkitse', hän: 'ei merkitse', me: 'emme merkitse', te: 'ette merkitse', he: 'eivät merkitse' },
+    }
+  },
+  { 
+    infinitive: 'häiritä', type: 5, translation: 'to disturb', synonyms: ['disturb', 'bother', 'interrupt'], level: 'A2',
+    forms: {
+      present: { minä: 'häiritsen', sinä: 'häiritset', hän: 'häiritsee', me: 'häiritsemme', te: 'häiritsette', he: 'häiritsevät' },
+      negative: { minä: 'en häiritse', sinä: 'et häiritse', hän: 'ei häiritse', me: 'emme häiritse', te: 'ette häiritse', he: 'eivät häiritse' },
+    }
+  },
+  { 
+    infinitive: 'havaita', type: 5, translation: 'to notice, to observe', synonyms: ['notice', 'observe', 'detect'], level: 'A2',
+    forms: {
+      present: { minä: 'havaitsen', sinä: 'havaitset', hän: 'havaitsee', me: 'havaitsemme', te: 'havaitsette', he: 'havaitsevat' },
+      negative: { minä: 'en havaitse', sinä: 'et havaitse', hän: 'ei havaitse', me: 'emme havaitse', te: 'ette havaitse', he: 'eivät havaitse' },
+    }
+  },
+  { 
+    infinitive: 'mainita', type: 5, translation: 'to mention', synonyms: ['mention', 'refer to'], level: 'A2',
+    forms: {
+      present: { minä: 'mainitsen', sinä: 'mainitset', hän: 'mainitsee', me: 'mainitsemme', te: 'mainitsette', he: 'mainitsevat' },
+      negative: { minä: 'en mainitse', sinä: 'et mainitse', hän: 'ei mainitse', me: 'emme mainitse', te: 'ette mainitse', he: 'eivät mainitse' },
+    }
+  },
+  { 
+    infinitive: 'hallita', type: 5, translation: 'to control, to master', synonyms: ['control', 'master', 'govern'], level: 'A2',
+    forms: {
+      present: { minä: 'hallitsen', sinä: 'hallitset', hän: 'hallitsee', me: 'hallitsemme', te: 'hallitsette', he: 'hallitsevat' },
+      negative: { minä: 'en hallitse', sinä: 'et hallitse', hän: 'ei hallitse', me: 'emme hallitse', te: 'ette hallitse', he: 'eivät hallitse' },
+    }
+  },
+  // Type 6 verbs (-eta/-etä → -ene-)
+  { 
+    infinitive: 'vanheta', type: 6, translation: 'to age, to grow old', synonyms: ['age', 'grow old', 'get older'], level: 'A2',
+    forms: {
+      present: { minä: 'vanhenen', sinä: 'vanhenet', hän: 'vanhenee', me: 'vanhenemme', te: 'vanhenette', he: 'vanhenevat' },
+      negative: { minä: 'en vanhene', sinä: 'et vanhene', hän: 'ei vanhene', me: 'emme vanhene', te: 'ette vanhene', he: 'eivät vanhene' },
+    }
+  },
+  { 
+    infinitive: 'lämmetä', type: 6, translation: 'to warm up', synonyms: ['warm up', 'get warm', 'heat up'], level: 'A2',
+    forms: {
+      present: { minä: 'lämpenen', sinä: 'lämpenet', hän: 'lämpenee', me: 'lämpenemme', te: 'lämpenette', he: 'lämpenevät' },
+      negative: { minä: 'en lämpene', sinä: 'et lämpene', hän: 'ei lämpene', me: 'emme lämpene', te: 'ette lämpene', he: 'eivät lämpene' },
+    }
+  },
+  { 
+    infinitive: 'kylmetä', type: 6, translation: 'to cool down, to get cold', synonyms: ['cool down', 'get cold', 'chill'], level: 'A2',
+    forms: {
+      present: { minä: 'kylmenen', sinä: 'kylmenet', hän: 'kylmenee', me: 'kylmenemme', te: 'kylmenette', he: 'kylmenevät' },
+      negative: { minä: 'en kylmene', sinä: 'et kylmene', hän: 'ei kylmene', me: 'emme kylmene', te: 'ette kylmene', he: 'eivät kylmene' },
+    }
+  },
+  { 
+    infinitive: 'paeta', type: 6, translation: 'to escape, to flee', synonyms: ['escape', 'flee', 'run away'], level: 'A2',
+    forms: {
+      present: { minä: 'pakenen', sinä: 'pakenet', hän: 'pakenee', me: 'pakenemme', te: 'pakenette', he: 'pakenevat' },
+      negative: { minä: 'en pakene', sinä: 'et pakene', hän: 'ei pakene', me: 'emme pakene', te: 'ette pakene', he: 'eivät pakene' },
+    }
+  },
+  { 
+    infinitive: 'rohjeta', type: 6, translation: 'to dare', synonyms: ['dare', 'have courage'], level: 'A2',
+    forms: {
+      present: { minä: 'rohkenen', sinä: 'rohkenet', hän: 'rohkenee', me: 'rohkenemme', te: 'rohkenette', he: 'rohkenevat' },
+      negative: { minä: 'en rohkene', sinä: 'et rohkene', hän: 'ei rohkene', me: 'emme rohkene', te: 'ette rohkene', he: 'eivät rohkene' },
+    }
+  },
+  { 
+    infinitive: 'pidetä', type: 6, translation: 'to lengthen, to extend', synonyms: ['lengthen', 'extend', 'prolong'], level: 'A2',
+    forms: {
+      present: { minä: 'pitenen', sinä: 'pitenet', hän: 'pitenee', me: 'pitenemme', te: 'pitenette', he: 'pitenevät' },
+      negative: { minä: 'en pitene', sinä: 'et pitene', hän: 'ei pitene', me: 'emme pitene', te: 'ette pitene', he: 'eivät pitene' },
+    }
+  },
+  { 
+    infinitive: 'lyhetä', type: 6, translation: 'to shorten, to get shorter', synonyms: ['shorten', 'get shorter'], level: 'A2',
+    forms: {
+      present: { minä: 'lyhenen', sinä: 'lyhenet', hän: 'lyhenee', me: 'lyhenemme', te: 'lyhenette', he: 'lyhenevät' },
+      negative: { minä: 'en lyhene', sinä: 'et lyhene', hän: 'ei lyhene', me: 'emme lyhene', te: 'ette lyhene', he: 'eivät lyhene' },
+    }
+  },
+  { 
+    infinitive: 'levetä', type: 6, translation: 'to widen, to get wider', synonyms: ['widen', 'get wider', 'broaden'], level: 'A2',
+    forms: {
+      present: { minä: 'levenen', sinä: 'levenet', hän: 'levenee', me: 'levenemme', te: 'levenette', he: 'levenevät' },
+      negative: { minä: 'en levene', sinä: 'et levene', hän: 'ei levene', me: 'emme levene', te: 'ette levene', he: 'eivät levene' },
+    }
+  },
+  { 
+    infinitive: 'kaveta', type: 6, translation: 'to narrow, to get narrower', synonyms: ['narrow', 'get narrower'], level: 'A2',
+    forms: {
+      present: { minä: 'kapenen', sinä: 'kapenet', hän: 'kapenee', me: 'kapenemme', te: 'kapenette', he: 'kapenevat' },
+      negative: { minä: 'en kapene', sinä: 'et kapene', hän: 'ei kapene', me: 'emme kapene', te: 'ette kapene', he: 'eivät kapene' },
     }
   },
   { 

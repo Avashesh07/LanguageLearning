@@ -3,7 +3,7 @@ import type { GameState } from '../types';
 import { getAllRules } from '../data/consonantGradation';
 import { getTavoiteById } from '../data/tavoiteVocabulary';
 import { CASES, CASE_GROUPS } from '../data/finnishCases';
-import { getArticleById } from '../data/yleArticles';
+import { PARTITIVE_RULES } from '../data/partitiveData';
 import { CloseIcon, CheckIcon, MapPinIcon, GlobeIcon, EyeIcon } from './Icons';
 
 interface GameScreenProps {
@@ -13,9 +13,6 @@ interface GameScreenProps {
   onClearFeedback: () => void;
   onQuit: () => void;
   formatTime: (ms: number) => string;
-  onSubmitReadingAnswer?: (questionIndex: number, answerIndex: number) => void;
-  onToggleReadingVocabulary?: () => void;
-  onFinishReading?: () => void;
 }
 
 export function GameScreen({
@@ -25,22 +22,16 @@ export function GameScreen({
   onClearFeedback,
   onQuit,
   formatTime,
-  onSubmitReadingAnswer,
-  onToggleReadingVocabulary,
-  onFinishReading,
 }: GameScreenProps) {
   const [answer, setAnswer] = useState('');
   const [elapsedTime, setElapsedTime] = useState(0);
   const [showTranslation, setShowTranslation] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { session, currentVerb, feedback, mode, currentPerson, currentPolarity, currentSentence, currentGradationQuestion, gradationSession, vocabularySession, currentVocabularyWord, casesSession, currentCaseSentence, readingSession } = state;
-
-  // Get current article for reading mode
-  const currentArticle = readingSession ? getArticleById(readingSession.articleId) : undefined;
+  const { session, currentVerb, feedback, mode, currentPerson, currentPolarity, currentSentence, currentGradationQuestion, gradationSession, vocabularySession, currentVocabularyWord, casesSession, currentCaseSentence, verbTypeSession, partitiveSession, currentPartitiveWord } = state;
 
   useEffect(() => {
-    const startTime = session?.startTime || gradationSession?.startTime || vocabularySession?.startTime || casesSession?.startTime || readingSession?.startTime;
-    const isComplete = session?.isComplete || gradationSession?.isComplete || vocabularySession?.isComplete || casesSession?.isComplete || readingSession?.isComplete;
+    const startTime = session?.startTime || gradationSession?.startTime || vocabularySession?.startTime || casesSession?.startTime || verbTypeSession?.startTime || partitiveSession?.startTime;
+    const isComplete = session?.isComplete || gradationSession?.isComplete || vocabularySession?.isComplete || casesSession?.isComplete || verbTypeSession?.isComplete || partitiveSession?.isComplete;
     
     if (!startTime || isComplete) return;
 
@@ -49,7 +40,7 @@ export function GameScreen({
     }, 100);
 
     return () => clearInterval(interval);
-  }, [session?.startTime, session?.isComplete, gradationSession?.startTime, gradationSession?.isComplete, vocabularySession?.startTime, vocabularySession?.isComplete, casesSession?.startTime, casesSession?.isComplete, readingSession?.startTime, readingSession?.isComplete]);
+  }, [session?.startTime, session?.isComplete, gradationSession?.startTime, gradationSession?.isComplete, vocabularySession?.startTime, vocabularySession?.isComplete, casesSession?.startTime, casesSession?.isComplete, verbTypeSession?.startTime, verbTypeSession?.isComplete, partitiveSession?.startTime, partitiveSession?.isComplete]);
 
   useEffect(() => {
     if (!feedback && inputRef.current) {
@@ -648,136 +639,270 @@ export function GameScreen({
     );
   }
 
-  // Handle reading mode
-  const isReadingMode = mode === 'reading';
-  
-  if (isReadingMode) {
-    if (!readingSession || !currentArticle) return null;
+  // Handle partitive mode
+  if (mode === 'partitive') {
+    if (!partitiveSession || !currentPartitiveWord) return null;
     
-    const answeredCount = readingSession.questions.filter(q => q.answered).length;
-    const totalQuestions = currentArticle.questions.length;
-    const correctCount = readingSession.questions.filter(q => q.isCorrect).length;
+    const activeCount = partitiveSession.words.filter(w => !w.eliminated).length;
+    const eliminatedCount = partitiveSession.words.length - activeCount;
+    const currentWordState = partitiveSession.words[partitiveSession.currentWordIndex];
+    const hasWrongAnswer = currentWordState.wrongCount > 0;
+    
+    const ruleInfo = PARTITIVE_RULES.find(r => r.id === currentPartitiveWord.rule);
     
     return (
-      <div className="game-screen reading-screen">
-        <div className="game-header reading-header">
+      <div className="game-screen partitive-mode">
+        <div className="game-header">
           <button className="quit-btn" onClick={onQuit}>
-            ✕
+            <CloseIcon size={14} /> Quit
           </button>
-          <div className="reading-progress-bar">
-            <div 
-              className="reading-progress-fill" 
-              style={{ width: `${(answeredCount / totalQuestions) * 100}%` }}
-            />
-          </div>
-          <div className="reading-score">
-            {correctCount}/{answeredCount}
+          <div className="timer">{formatTime(elapsedTime)}</div>
+          <div className="progress-stats">
+            <span className="eliminated">{eliminatedCount}</span>
+            <span className="separator">/</span>
+            <span className="total">{partitiveSession.words.length}</span>
           </div>
         </div>
 
-        <div className="reading-content">
-          {/* Article Card */}
-          <div className={`reading-article-card ${currentArticle.articleSource === 'yle-news' ? 'yle-news-article' : ''}`}>
-            <div className="reading-article-badges">
-              <span className="reading-level-badge">{currentArticle.level}</span>
-              <span className="reading-topic-badge">{currentArticle.topic}</span>
-              {currentArticle.articleSource === 'yle-news' && (
-                <span className="reading-yle-badge">YLE</span>
-              )}
+        <div className="game-stats-bar partitive-stats">
+          <div className="stat-item">
+            <span className="stat-label">Rule</span>
+            <span className="stat-value">{ruleInfo?.name || currentPartitiveWord.rule}</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-label">Mistakes</span>
+            <span className="stat-value mistakes">{partitiveSession.wrongCount}</span>
+          </div>
+        </div>
+
+        <div className="prompt-area">
+          <div className="partitive-prompt-box">
+            <div className="partitive-word-header">
+              <span className="partitive-nominative">{currentPartitiveWord.nominative}</span>
+              <span className="partitive-translation">({currentPartitiveWord.translation})</span>
             </div>
             
-            <h1 className="reading-article-title">{currentArticle.title}</h1>
+            <div className="partitive-question">
+              <span className="partitive-label">Partitiivi?</span>
+            </div>
             
-            <div className="reading-article-body">
-              {currentArticle.content.split('\n\n').map((paragraph, idx) => (
-                <p key={idx}>{paragraph}</p>
+            {hasWrongAnswer && currentPartitiveWord.hint && (
+              <div className="partitive-hint">
+                <span className="hint-label">Hint:</span>
+                <span className="hint-text">{currentPartitiveWord.hint}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="input-area">
+          <form onSubmit={handleSubmit} className="input-wrapper">
+            <input
+              ref={inputRef}
+              type="text"
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+              placeholder="Write the partitive form..."
+              disabled={!!feedback}
+              autoComplete="off"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            <button
+              type="submit"
+              className="submit-btn"
+              disabled={!answer.trim() || !!feedback}
+            >
+              Enter
+            </button>
+          </form>
+        </div>
+
+        {feedback && (
+          <div className={`feedback ${feedback.isCorrect ? 'correct' : 'incorrect'} ${!feedback.isCorrect ? 'detailed' : ''}`}>
+            <div className="feedback-title">
+              {feedback.isCorrect ? 'CORRECT!' : 'WRONG'}
+            </div>
+            
+            {!feedback.isCorrect && (
+              <>
+                <div className="feedback-answers">
+                  <div className="your-answer">
+                    <span className="label">Your answer:</span>
+                    <span className="answer wrong">{feedback.userAnswer}</span>
+                  </div>
+                  <div className="correct-answer">
+                    <span className="label">Correct:</span>
+                    <span className="answer">{feedback.correctAnswer}</span>
+                  </div>
+                </div>
+                
+                {feedback.verbTypeInfo && (
+                  <div className="feedback-rule-info">
+                    <span className="rule-name">{feedback.verbTypeInfo}</span>
+                    {feedback.rule && <span className="rule-text">{feedback.rule}</span>}
+                  </div>
+                )}
+              </>
+            )}
+            
+            <button className="continue-btn" onClick={handleContinue}>
+              {feedback.isCorrect ? 'Continue' : 'Try Again'}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Handle verb type arena modes
+  const isVerbTypeMode = mode === 'verb-type-present' || mode === 'verb-type-imperfect';
+  
+  if (isVerbTypeMode) {
+    if (!verbTypeSession) return null;
+    
+    const currentVerb = verbTypeSession.verbs[verbTypeSession.currentVerbIndex];
+    if (!currentVerb) return null;
+    
+    const currentForm = currentVerb.forms[currentVerb.currentFormIndex];
+    const completedForms = currentVerb.forms.filter(f => f.isCorrect === true).length;
+    const totalForms = currentVerb.forms.length;
+    const completedVerbs = verbTypeSession.verbs.filter(v => v.completed).length;
+    const totalVerbs = verbTypeSession.verbs.length;
+    
+    const tenseLabel = mode === 'verb-type-present' ? 'Preesens' : 'Imperfekti';
+    
+    return (
+      <div className="game-screen verb-type-mode">
+        <div className="game-header">
+          <button className="quit-btn" onClick={onQuit}>
+            <CloseIcon size={14} /> Quit
+          </button>
+          <div className="timer">{formatTime(elapsedTime)}</div>
+          <div className="progress-stats">
+            <span className="eliminated">{completedVerbs}</span>
+            <span className="separator">/</span>
+            <span className="total">{totalVerbs}</span>
+          </div>
+        </div>
+
+        <div className="game-stats-bar verb-type-stats">
+          <div className="stat-item">
+            <span className="stat-label">Tense</span>
+            <span className="stat-value">{tenseLabel}</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-label">Type</span>
+            <span className="stat-value">{currentVerb.verbType}</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-label">Mistakes</span>
+            <span className="stat-value mistakes">{verbTypeSession.totalWrongCount}</span>
+          </div>
+        </div>
+
+        <div className="prompt-area">
+          <div className="verb-type-prompt-box">
+            {/* Verb header */}
+            <div className="verb-type-header">
+              <span className="verb-infinitive">{currentVerb.infinitive}</span>
+              <span className="verb-translation">({currentVerb.translation})</span>
+            </div>
+            
+            {/* Form progress */}
+            <div className="verb-form-progress">
+              {currentVerb.forms.map((form, idx) => (
+                <div 
+                  key={form.person}
+                  className={`form-progress-item ${form.isCorrect === true ? 'correct' : form.isCorrect === false ? 'wrong' : ''} ${idx === currentVerb.currentFormIndex ? 'current' : ''}`}
+                >
+                  <span className="form-person">{form.person}</span>
+                  {form.isCorrect === true && <CheckIcon size={12} color="#4caf50" />}
+                </div>
               ))}
             </div>
-
-            {/* Vocabulary Helper - Collapsible */}
-            <div className="reading-vocab-helper">
-              <button
-                className={`reading-vocab-toggle ${readingSession.showingVocabulary ? 'expanded' : ''}`}
-                onClick={onToggleReadingVocabulary}
-              >
-                <span className="vocab-toggle-icon">{readingSession.showingVocabulary ? '▼' : '▶'}</span>
-                <span>Sanasto ({currentArticle.vocabulary.length})</span>
-              </button>
-              {readingSession.showingVocabulary && (
-                <div className="reading-vocab-grid">
-                  {currentArticle.vocabulary.map((item, idx) => (
-                    <div key={idx} className="reading-vocab-item">
-                      <span className="rv-finnish">{item.finnish}</span>
-                      <span className="rv-english">{item.english}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Questions Section */}
-          <div className="reading-questions-section">
-            <h2 className="reading-questions-title">Vastaa kysymyksiin</h2>
             
-            {currentArticle.questions.map((question, qIdx) => {
-              const questionState = readingSession.questions[qIdx];
-              const isAnswered = questionState.answered;
-              const isCorrect = questionState.isCorrect;
-              
-              return (
-                <div 
-                  key={question.id} 
-                  className={`reading-question ${isAnswered ? (isCorrect ? 'answered-correct' : 'answered-wrong') : ''}`}
-                >
-                  <div className="rq-header">
-                    <span className="rq-number">{qIdx + 1}</span>
-                    <span className="rq-text">{question.question}</span>
-                    {isAnswered && (
-                      <span className={`rq-status ${isCorrect ? 'correct' : 'wrong'}`}>
-                        {isCorrect ? '✓' : '✗'}
-                      </span>
-                    )}
-                  </div>
-                  
-                  <div className="rq-options">
-                    {question.options.map((option, oIdx) => {
-                      const isSelected = questionState.selectedAnswer === oIdx;
-                      const isCorrectAnswer = question.correctAnswer === oIdx;
-                      const showCorrect = isAnswered && isCorrectAnswer;
-                      const showWrong = isAnswered && isSelected && !isCorrect;
-                      
-                      return (
-                        <button
-                          key={oIdx}
-                          className={`rq-option ${isSelected ? 'selected' : ''} ${showCorrect ? 'correct' : ''} ${showWrong ? 'wrong' : ''}`}
-                          onClick={() => !isAnswered && onSubmitReadingAnswer?.(qIdx, oIdx)}
-                          disabled={isAnswered}
-                        >
-                          {option}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Complete Button */}
-          {answeredCount === totalQuestions && (
-            <div className="reading-complete-section">
-              <div className="reading-final-score">
-                <span className="rfs-label">Tulos:</span>
-                <span className="rfs-value">{correctCount}/{totalQuestions}</span>
-                <span className="rfs-percent">({Math.round((correctCount / totalQuestions) * 100)}%)</span>
+            {/* Current form to conjugate */}
+            {currentForm && (
+              <div className="verb-form-prompt">
+                <span className="form-person-large">{currentForm.person}</span>
+                <span className="form-arrow">→</span>
+                <span className="form-blank">?</span>
               </div>
-              <button className="reading-finish-btn" onClick={onFinishReading}>
-                Valmis →
-              </button>
+            )}
+            
+            {/* Progress indicator */}
+            <div className="verb-form-counter">
+              {completedForms}/{totalForms} forms completed
             </div>
-          )}
+          </div>
         </div>
+
+        <div className="input-area">
+          <form onSubmit={handleSubmit} className="input-wrapper">
+            <input
+              ref={inputRef}
+              type="text"
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+              placeholder={`Conjugate for ${currentForm?.person || ''}...`}
+              disabled={!!feedback}
+              autoComplete="off"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            <button
+              type="submit"
+              className="submit-btn"
+              disabled={!answer.trim() || !!feedback}
+            >
+              Enter
+            </button>
+          </form>
+        </div>
+
+        {feedback && (
+          <div className={`feedback ${feedback.isCorrect ? 'correct' : 'incorrect'} ${!feedback.isCorrect ? 'detailed' : ''}`}>
+            <div className="feedback-title">
+              {feedback.isCorrect ? 'CORRECT!' : 'WRONG'}
+            </div>
+            
+            {!feedback.isCorrect && (
+              <div className="feedback-learning">
+                <div className="feedback-your-answer">
+                  You typed: <span>{feedback.userAnswer}</span>
+                </div>
+                <div className="feedback-correct-answer">
+                  Correct: <span>{feedback.correctAnswer}</span>
+                </div>
+                
+                {feedback.verbTypeInfo && (
+                  <div className="feedback-section">
+                    <div className="feedback-section-title">Verb Type</div>
+                    <div className="feedback-section-content">{feedback.verbTypeInfo}</div>
+                  </div>
+                )}
+                
+                {feedback.rule && (
+                  <div className="feedback-section">
+                    <div className="feedback-section-title">Rule</div>
+                    <div className="feedback-section-content">{feedback.rule}</div>
+                  </div>
+                )}
+
+                <button className="feedback-continue-btn" onClick={handleContinue}>
+                  Continue
+                </button>
+              </div>
+            )}
+            
+            {feedback.isCorrect && (
+              <div className="eliminated-notice"><CheckIcon size={14} color="#f0c674" /> Next form!</div>
+            )}
+          </div>
+        )}
       </div>
     );
   }

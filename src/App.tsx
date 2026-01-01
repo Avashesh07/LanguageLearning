@@ -8,23 +8,21 @@ import { StudyScreen } from './components/StudyScreen';
 import { getSM2CycleById } from './data/suomenMestari2';
 
 function App() {
-  const [lastActiveTab, setLastActiveTab] = useState<'verbs' | 'vocabulary' | 'cases' | 'reading'>('verbs');
+  const [lastActiveTab, setLastActiveTab] = useState<'verbs' | 'vocabulary' | 'cases' | 'partitive'>('verbs');
   const [studyMode, setStudyMode] = useState<{ active: boolean; cycleIds: string[] }>({ active: false, cycleIds: [] });
   const {
     state,
-    selectedLevels,
-    setSelectedLevels,
-    startSession,
     submitAnswer,
     nextVerb,
     clearFeedback,
     returnToMenu,
     exportTimes,
     resetProgress,
-    getVerbCountForLevels,
-    isActiveRecallUnlocked,
-    isConjugationUnlocked,
-    isImperfectUnlocked,
+    // Verb Type Arena
+    selectedVerbTypes,
+    setSelectedVerbTypes,
+    startVerbTypeSession,
+    getVerbCountByTypes,
     // Vocabulary (Kurssin Arvostelu)
     selectedTavoites,
     setSelectedTavoites,
@@ -47,19 +45,21 @@ function App() {
     startCasesSession,
     getCasesSentenceCount,
     caseGroups,
-    // Reading
-    startReadingSession,
-    submitReadingAnswer,
-    toggleReadingVocabulary,
-    finishReading,
+    // Partitive
+    selectedPartitiveRules,
+    setSelectedPartitiveRules,
+    startPartitiveSession,
+    getPartitiveWordCount,
+    partitiveRules,
   } = useGameState();
 
   const isSessionComplete = state.session?.isComplete;
   const isGradationComplete = state.gradationSession?.isComplete;
   const isVocabularyComplete = state.vocabularySession?.isComplete;
   const isCasesComplete = state.casesSession?.isComplete;
-  const isReadingComplete = state.readingSession?.isComplete;
-  const isComplete = isSessionComplete || isGradationComplete || isVocabularyComplete || isCasesComplete || isReadingComplete;
+  const isVerbTypeComplete = state.verbTypeSession?.isComplete;
+  const isPartitiveComplete = state.partitiveSession?.isComplete;
+  const isComplete = isSessionComplete || isGradationComplete || isVocabularyComplete || isCasesComplete || isVerbTypeComplete || isPartitiveComplete;
 
   // Track which tab should be active based on current mode
   useEffect(() => {
@@ -67,13 +67,15 @@ function App() {
       setLastActiveTab('vocabulary');
     } else if (state.mode === 'cases-fill-blank') {
       setLastActiveTab('cases');
-    } else if (state.mode === 'reading') {
-      setLastActiveTab('reading');
+    } else if (state.mode === 'partitive') {
+      setLastActiveTab('partitive');
+    } else if (state.mode === 'verb-type-present' || state.mode === 'verb-type-imperfect') {
+      setLastActiveTab('verbs');
     } else if (state.mode === 'menu') {
       // Keep the last active tab when returning to menu
       // (don't change it)
     } else {
-      // Verb arena modes
+      // Other modes
       setLastActiveTab('verbs');
     }
   }, [state.mode]);
@@ -93,11 +95,15 @@ function App() {
       }
     } else if (state.mode === 'cases-fill-blank') {
       startCasesSession(selectedCaseCategories);
-    } else if (state.mode === 'reading') {
-      // For reading, return to menu to select another article
-      returnToMenu();
+    } else if (state.mode === 'verb-type-present' || state.mode === 'verb-type-imperfect') {
+      // Verb type arena - replay with same settings
+      const tense = state.mode === 'verb-type-present' ? 'present' : 'imperfect';
+      startVerbTypeSession(tense, selectedVerbTypes);
+    } else if (state.mode === 'partitive') {
+      // Partitive - replay with same rules
+      startPartitiveSession(selectedPartitiveRules);
     } else {
-      startSession(state.mode, selectedLevels);
+      returnToMenu();
     }
   };
 
@@ -138,16 +144,13 @@ function App() {
       {state.mode === 'menu' ? (
         <Menu
           player={state.player}
-          selectedLevels={selectedLevels}
-          onSelectLevels={setSelectedLevels}
-          onStartSession={startSession}
           onExportTimes={exportTimes}
           onResetProgress={resetProgress}
           formatTime={formatTime}
-          getVerbCountForLevels={getVerbCountForLevels}
-          isActiveRecallUnlocked={isActiveRecallUnlocked}
-          isConjugationUnlocked={isConjugationUnlocked}
-          isImperfectUnlocked={isImperfectUnlocked}
+          selectedVerbTypes={selectedVerbTypes}
+          onSelectVerbTypes={setSelectedVerbTypes}
+          onStartVerbTypeSession={startVerbTypeSession}
+          getVerbCountByTypes={getVerbCountByTypes}
           selectedTavoites={selectedTavoites}
           onSelectTavoites={setSelectedTavoites}
           onStartVocabularySession={startVocabularySession}
@@ -168,7 +171,11 @@ function App() {
           onStartCasesSession={startCasesSession}
           getCasesSentenceCount={getCasesSentenceCount}
           caseGroups={caseGroups}
-          onStartReading={startReadingSession}
+          selectedPartitiveRules={selectedPartitiveRules}
+          onSelectPartitiveRules={setSelectedPartitiveRules}
+          onStartPartitiveSession={startPartitiveSession}
+          getPartitiveWordCount={getPartitiveWordCount}
+          partitiveRules={partitiveRules}
           initialTab={lastActiveTab}
           onTabChange={setLastActiveTab}
         />
@@ -177,14 +184,15 @@ function App() {
           session={state.session!}
           player={state.player}
           mode={state.mode}
-          levels={selectedLevels}
+          levels={[]}
           onReturnToMenu={returnToMenu}
           onPlayAgain={handlePlayAgain}
           formatTime={formatTime}
           gradationSession={state.gradationSession}
           vocabularySession={state.vocabularySession}
           casesSession={state.casesSession}
-          readingSession={state.readingSession}
+          verbTypeSession={state.verbTypeSession}
+          partitiveSession={state.partitiveSession}
         />
       ) : (
         <GameScreen
@@ -194,9 +202,6 @@ function App() {
           onClearFeedback={clearFeedback}
           onQuit={returnToMenu}
           formatTime={formatTime}
-          onSubmitReadingAnswer={submitReadingAnswer}
-          onToggleReadingVocabulary={toggleReadingVocabulary}
-          onFinishReading={finishReading}
         />
       )}
     </div>

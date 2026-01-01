@@ -1,6 +1,5 @@
-import type { SessionState, PlayerState, GameMode, VerbLevel, ConsonantGradationSessionState, VocabularySessionState, CasesSessionState, ReadingSessionState } from '../types';
-import { StarIcon, TrophyIcon, MapPinIcon, NewspaperIcon } from './Icons';
-import { getArticleById } from '../data/yleArticles';
+import type { SessionState, PlayerState, GameMode, VerbLevel, ConsonantGradationSessionState, VocabularySessionState, CasesSessionState, VerbTypeSessionState, PartitiveSessionState } from '../types';
+import { StarIcon, TrophyIcon, MapPinIcon, TargetIcon } from './Icons';
 
 interface ResultsScreenProps {
   session: SessionState | null;
@@ -13,7 +12,8 @@ interface ResultsScreenProps {
   gradationSession?: ConsonantGradationSessionState;
   vocabularySession?: VocabularySessionState;
   casesSession?: CasesSessionState;
-  readingSession?: ReadingSessionState;
+  verbTypeSession?: VerbTypeSessionState;
+  partitiveSession?: PartitiveSessionState;
 }
 
 const MODE_NAMES: Record<GameMode, string> = {
@@ -27,7 +27,9 @@ const MODE_NAMES: Record<GameMode, string> = {
   'vocabulary-active-recall': 'Vocabulary Active Recall',
   'vocabulary-memorise': 'Opettele',
   'cases-fill-blank': 'Cases Fill in the Blank',
-  'reading': 'Reading Comprehension',
+  'verb-type-present': 'Present Tense Conjugation',
+  'verb-type-imperfect': 'Past Tense Conjugation',
+  'partitive': 'Partitive Case Practice',
 };
 
 export function ResultsScreen({
@@ -41,17 +43,16 @@ export function ResultsScreen({
   gradationSession,
   vocabularySession,
   casesSession,
-  readingSession,
+  verbTypeSession,
+  partitiveSession,
 }: ResultsScreenProps) {
   // Handle different modes
   const isGradationMode = mode === 'consonant-gradation';
   const isVocabularyMode = mode === 'vocabulary-recall' || mode === 'vocabulary-active-recall';
   const isMemoriseMode = mode === 'vocabulary-memorise';
   const isCasesMode = mode === 'cases-fill-blank';
-  const isReadingMode = mode === 'reading';
-  
-  // Get article info for reading mode
-  const currentArticle = readingSession ? getArticleById(readingSession.articleId) : undefined;
+  const isVerbTypeMode = mode === 'verb-type-present' || mode === 'verb-type-imperfect';
+  const isPartitiveMode = mode === 'partitive';
   
   let timeMs: number;
   let isPerfect: boolean;
@@ -79,13 +80,21 @@ export function ResultsScreen({
     totalQuestions = casesSession.sentences.length;
     const totalAttempts = casesSession.sentences.reduce((sum, s) => sum + s.correctCount, 0) + casesSession.wrongCount;
     accuracy = totalAttempts > 0 ? Math.round(((totalAttempts - casesSession.wrongCount) / totalAttempts) * 100) : 100;
-  } else if (isReadingMode && readingSession) {
-    timeMs = readingSession.endTime! - readingSession.startTime!;
-    const correctCount = readingSession.questions.filter(q => q.isCorrect).length;
-    wrongCount = readingSession.wrongCount;
-    totalQuestions = readingSession.questions.length;
-    isPerfect = wrongCount === 0;
-    accuracy = Math.round((correctCount / totalQuestions) * 100);
+  } else if (isVerbTypeMode && verbTypeSession) {
+    timeMs = verbTypeSession.endTime! - verbTypeSession.startTime!;
+    isPerfect = verbTypeSession.totalWrongCount === 0;
+    wrongCount = verbTypeSession.totalWrongCount;
+    totalQuestions = verbTypeSession.verbs.length;
+    const totalForms = verbTypeSession.verbs.reduce((sum, v) => sum + v.forms.length, 0);
+    const totalCorrect = totalForms - wrongCount;
+    accuracy = totalForms > 0 ? Math.round((totalCorrect / totalForms) * 100) : 100;
+  } else if (isPartitiveMode && partitiveSession) {
+    timeMs = partitiveSession.endTime! - partitiveSession.startTime!;
+    isPerfect = partitiveSession.wrongCount === 0;
+    wrongCount = partitiveSession.wrongCount;
+    totalQuestions = partitiveSession.words.length;
+    const totalAttempts = partitiveSession.words.reduce((sum, w) => sum + w.correctCount, 0) + partitiveSession.wrongCount;
+    accuracy = totalAttempts > 0 ? Math.round(((totalAttempts - partitiveSession.wrongCount) / totalAttempts) * 100) : 100;
   } else if (session) {
     timeMs = session.endTime! - session.startTime!;
     isPerfect = session.wrongCount === 0;
@@ -99,13 +108,13 @@ export function ResultsScreen({
   
   const levelKey = [...levels].sort().join('+');
   const bestTime = player.bestTimes.find(
-    (t) => t.mode === mode && (isGradationMode || isVocabularyMode || isCasesMode || isReadingMode || [...t.levels].sort().join('+') === levelKey)
+    (t) => t.mode === mode && (isGradationMode || isVocabularyMode || isCasesMode || [...t.levels].sort().join('+') === levelKey)
   );
   const isNewRecord = bestTime && bestTime.timeMs === timeMs;
 
   // Check what was unlocked (only for verb arena modes)
   const checkUnlock = () => {
-    if (isVocabularyMode || isCasesMode || isReadingMode) return { unlocked: false, next: '', desc: '' };
+    if (isVocabularyMode || isCasesMode) return { unlocked: false, next: '', desc: '' };
     
     if (mode === 'recall' && isPerfect) {
       return { unlocked: true, next: 'Active Recall', desc: 'English → Finnish' };
@@ -127,13 +136,30 @@ export function ResultsScreen({
         {isPerfect ? 'PERFECT!' : 'COMPLETED'}
       </h1>
 
-      <div className={`results-mode ${isVocabularyMode || isMemoriseMode ? 'vocabulary' : ''} ${isCasesMode ? 'cases' : ''} ${isReadingMode ? 'reading' : ''}`}>
+      <div className={`results-mode ${isVocabularyMode || isMemoriseMode ? 'vocabulary' : ''} ${isCasesMode ? 'cases' : ''} ${isVerbTypeMode ? 'verb-type' : ''} ${isPartitiveMode ? 'partitive' : ''}`}>
         {isCasesMode && <MapPinIcon size={20} />}
-        {isReadingMode && <NewspaperIcon size={20} />}
+        {isVerbTypeMode && <TargetIcon size={20} />}
+        {isPartitiveMode && <TargetIcon size={20} />}
         {MODE_NAMES[mode]}
       </div>
 
-      {!isGradationMode && !isVocabularyMode && !isCasesMode && !isReadingMode && (
+      {isVerbTypeMode && verbTypeSession && (
+        <div className="results-verb-types">
+          {verbTypeSession.selectedTypes.map((type) => (
+            <span key={type} className="type-badge">Type {type}</span>
+          ))}
+        </div>
+      )}
+
+      {isPartitiveMode && partitiveSession && (
+        <div className="results-partitive-rules">
+          {partitiveSession.selectedRules.map((rule) => (
+            <span key={rule} className="rule-badge">{rule}</span>
+          ))}
+        </div>
+      )}
+
+      {!isGradationMode && !isVocabularyMode && !isCasesMode && !isVerbTypeMode && !isPartitiveMode && (
         <div className="results-levels">
           {levels.map((level) => (
             <span key={level} className="level-badge">{level}</span>
@@ -156,14 +182,6 @@ export function ResultsScreen({
           ))}
         </div>
       )}
-
-      {isReadingMode && currentArticle && (
-        <div className="results-article">
-          <span className="article-badge">{currentArticle.level}</span>
-          <span className="article-title-result">{currentArticle.title}</span>
-        </div>
-      )}
-
 
       {isNewRecord && (
         <div className="new-record"><StarIcon size={20} color="#4caf50" /> NEW RECORD <StarIcon size={20} color="#4caf50" /></div>
@@ -191,7 +209,7 @@ export function ResultsScreen({
 
         <div className="result-item">
           <span className="result-label">
-            {isGradationMode ? 'Questions' : isVocabularyMode ? 'Words' : isCasesMode ? 'Sentences' : 'Verbs'}
+            {isGradationMode ? 'Questions' : isVocabularyMode ? 'Words' : isCasesMode ? 'Sentences' : isVerbTypeMode ? 'Verbs' : isPartitiveMode ? 'Words' : 'Verbs'}
           </span>
           <span className="result-value">{totalQuestions}</span>
         </div>

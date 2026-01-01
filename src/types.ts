@@ -1,6 +1,6 @@
 // Finnish Verb Arena - Types
 
-export type GameMode = 'menu' | 'recall' | 'active-recall' | 'conjugation' | 'consonant-gradation' | 'imperfect' | 'vocabulary-recall' | 'vocabulary-active-recall' | 'vocabulary-memorise' | 'cases-fill-blank' | 'reading';
+export type GameMode = 'menu' | 'recall' | 'active-recall' | 'conjugation' | 'consonant-gradation' | 'imperfect' | 'vocabulary-recall' | 'vocabulary-active-recall' | 'vocabulary-memorise' | 'cases-fill-blank' | 'verb-type-present' | 'verb-type-imperfect' | 'partitive';
 
 export type VerbLevel = 'A1' | 'A2' | 'B1';
 
@@ -125,8 +125,11 @@ export interface GameState {
   // Finnish Cases specific
   casesSession?: CasesSessionState;
   currentCaseSentence?: CurrentCaseSentence;
-  // Reading specific
-  readingSession?: ReadingSessionState;
+  // Verb Type Arena specific
+  verbTypeSession?: VerbTypeSessionState;
+  // Partitive Case specific
+  partitiveSession?: PartitiveSessionState;
+  currentPartitiveWord?: CurrentPartitiveWord;
 }
 
 export interface FeedbackData {
@@ -271,23 +274,71 @@ export interface CasesProgress {
   bestDate?: string;
 }
 
-// Reading comprehension types
-export interface ReadingQuestionState {
-  questionId: string;
-  answered: boolean;
-  selectedAnswer: number | null;
+// Verb Type Arena Types - Practice all forms of each verb
+export interface VerbTypeFormState {
+  person: Person;
+  correctForm: string;
+  userAnswer: string | null;
   isCorrect: boolean | null;
 }
 
-export interface ReadingSessionState {
-  mode: 'reading';
-  articleId: string;
-  questions: ReadingQuestionState[];
-  currentQuestionIndex: number;
-  showingVocabulary: boolean;
-  showingTranslation: boolean;
+export interface VerbTypeVerbState {
+  infinitive: string;
+  translation: string;
+  verbType: number;
+  forms: VerbTypeFormState[];
+  currentFormIndex: number;
+  completed: boolean;
+  wrongCount: number;
+}
+
+export interface VerbTypeSessionState {
+  mode: 'verb-type-present' | 'verb-type-imperfect';
+  selectedTypes: number[];
+  verbs: VerbTypeVerbState[];
+  currentVerbIndex: number;
+  startTime: number | null;
+  endTime: number | null;
+  totalWrongCount: number;
+  isComplete: boolean;
+}
+
+// Partitive Case Types
+export type PartitiveRule = 
+  | 'single-vowel'
+  | 'two-vowels'
+  | 'new-i'
+  | 'old-i'
+  | 'e-ending'
+  | 'consonant'
+  | 'nen-ending';
+
+export interface PartitiveWordState {
+  nominative: string;
+  partitive: string;
+  translation: string;
+  rule: PartitiveRule;
+  hint?: string;
+  correctCount: number;
+  wrongCount: number;
+  eliminated: boolean;
+}
+
+export interface PartitiveSessionState {
+  mode: 'partitive';
+  selectedRules: PartitiveRule[];
+  words: PartitiveWordState[];
+  currentWordIndex: number;
   startTime: number | null;
   endTime: number | null;
   wrongCount: number;
   isComplete: boolean;
+}
+
+export interface CurrentPartitiveWord {
+  nominative: string;
+  partitive: string;
+  translation: string;
+  rule: PartitiveRule;
+  hint?: string;
 }

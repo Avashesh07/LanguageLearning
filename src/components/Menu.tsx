@@ -1,24 +1,22 @@
 import { useState, useEffect } from 'react';
-import type { GameMode, PlayerState, VerbLevel, CaseCategory } from '../types';
-import { verbsByLevel } from '../data/verbs';
+import type { PlayerState, CaseCategory, PartitiveRule } from '../types';
+import { verbs, verbTypeInfo } from '../data/verbs';
 import type { Tavoite } from '../data/tavoiteVocabulary';
 import type { SM2Chapter, SM2Cycle } from '../data/suomenMestari2';
 import type { CaseGroup } from '../data/finnishCases';
-import { getArticlesByLevel, getYleNewsArticles, type YleArticle } from '../data/yleArticles';
-import { TargetIcon, BookIcon, OpenBookIcon, PencilIcon, CheckIcon, MapPinIcon, GlobeIcon, NewspaperIcon } from './Icons';
+import type { PartitiveRuleInfo } from '../data/partitiveData';
+import { TargetIcon, BookIcon, OpenBookIcon, PencilIcon, CheckIcon, MapPinIcon } from './Icons';
 
 interface MenuProps {
   player: PlayerState;
-  selectedLevels: VerbLevel[];
-  onSelectLevels: (levels: VerbLevel[]) => void;
-  onStartSession: (mode: GameMode, levels: VerbLevel[]) => void;
   onExportTimes: () => void;
   onResetProgress: () => void;
   formatTime: (ms: number) => string;
-  getVerbCountForLevels: (levels: VerbLevel[]) => number;
-  isActiveRecallUnlocked: (levels: VerbLevel[]) => boolean;
-  isConjugationUnlocked: (levels: VerbLevel[]) => boolean;
-  isImperfectUnlocked: (levels: VerbLevel[]) => boolean;
+  // Verb Type Arena props
+  selectedVerbTypes: number[];
+  onSelectVerbTypes: (types: number[]) => void;
+  onStartVerbTypeSession: (tense: 'present' | 'imperfect', types: number[]) => void;
+  getVerbCountByTypes: (types: number[]) => number;
   // Vocabulary props (Kurssin Arvostelu)
   selectedTavoites: number[];
   onSelectTavoites: (tavoites: number[]) => void;
@@ -42,27 +40,28 @@ interface MenuProps {
   onStartCasesSession: (categories: CaseCategory[]) => void;
   getCasesSentenceCount: (categories: CaseCategory[]) => number;
   caseGroups: CaseGroup[];
-  // Reading props
-  onStartReading: (article: YleArticle) => void;
+  // Partitive props
+  selectedPartitiveRules: PartitiveRule[];
+  onSelectPartitiveRules: (rules: PartitiveRule[]) => void;
+  onStartPartitiveSession: (rules: PartitiveRule[]) => void;
+  getPartitiveWordCount: (rules: PartitiveRule[]) => number;
+  partitiveRules: PartitiveRuleInfo[];
   // Tab management
-  initialTab?: 'verbs' | 'vocabulary' | 'cases' | 'reading';
-  onTabChange?: (tab: 'verbs' | 'vocabulary' | 'cases' | 'reading') => void;
+  initialTab?: 'verbs' | 'vocabulary' | 'cases' | 'partitive';
+  onTabChange?: (tab: 'verbs' | 'vocabulary' | 'cases' | 'partitive') => void;
 }
 
-const LEVELS: VerbLevel[] = ['A1', 'A2'];
+const VERB_TYPES = [1, 2, 3, 4, 5, 6] as const;
 
 export function Menu({
   player,
-  selectedLevels,
-  onSelectLevels,
-  onStartSession,
   onExportTimes,
   onResetProgress,
   formatTime,
-  getVerbCountForLevels,
-  isActiveRecallUnlocked,
-  isConjugationUnlocked,
-  isImperfectUnlocked,
+  selectedVerbTypes,
+  onSelectVerbTypes,
+  onStartVerbTypeSession,
+  getVerbCountByTypes,
   selectedTavoites,
   onSelectTavoites,
   onStartVocabularySession,
@@ -83,25 +82,25 @@ export function Menu({
   onStartCasesSession,
   getCasesSentenceCount,
   caseGroups,
-  onStartReading,
+  selectedPartitiveRules,
+  onSelectPartitiveRules,
+  onStartPartitiveSession,
+  getPartitiveWordCount,
+  partitiveRules,
   initialTab = 'verbs',
   onTabChange,
 }: MenuProps) {
-  const [activeTab, setActiveTab] = useState<'verbs' | 'vocabulary' | 'cases' | 'reading'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'verbs' | 'vocabulary' | 'cases' | 'partitive'>(initialTab);
   
   // Update local state when initialTab changes (e.g., when returning from quiz)
   useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab]);
   
-  const handleTabChange = (tab: 'verbs' | 'vocabulary' | 'cases' | 'reading') => {
+  const handleTabChange = (tab: 'verbs' | 'vocabulary' | 'cases' | 'partitive') => {
     setActiveTab(tab);
     onTabChange?.(tab);
   };
-
-  // Get articles for the reading tab
-  const a1Articles = getArticlesByLevel('A1');
-  const yleNewsArticles = getYleNewsArticles();
 
   const toggleCaseCategory = (category: CaseCategory) => {
     if (selectedCaseCategories.includes(category)) {
@@ -116,18 +115,15 @@ export function Menu({
   const casesSentenceCount = getCasesSentenceCount(selectedCaseCategories);
   
   const bestTimes = player.bestTimes || [];
-  const verbCount = getVerbCountForLevels(selectedLevels);
-  const activeRecallUnlocked = isActiveRecallUnlocked(selectedLevels);
-  const conjugationUnlocked = isConjugationUnlocked(selectedLevels);
-  const imperfectUnlocked = isImperfectUnlocked(selectedLevels);
+  const verbsByTypeCount = getVerbCountByTypes(selectedVerbTypes);
 
-  const toggleLevel = (level: VerbLevel) => {
-    if (selectedLevels.includes(level)) {
-      if (selectedLevels.length > 1) {
-        onSelectLevels(selectedLevels.filter((l) => l !== level));
+  const toggleVerbType = (type: number) => {
+    if (selectedVerbTypes.includes(type)) {
+      if (selectedVerbTypes.length > 1) {
+        onSelectVerbTypes(selectedVerbTypes.filter((t) => t !== type));
       }
     } else {
-      onSelectLevels([...selectedLevels, level]);
+      onSelectVerbTypes([...selectedVerbTypes, type]);
     }
   };
 
@@ -193,23 +189,6 @@ export function Menu({
   const sm2WordCount = getSM2WordCount(selectedSM2Chapters);
   const sm2CycleWordCount = getSM2CycleWordCount(selectedSM2Cycles);
 
-  const levelKey = [...selectedLevels].sort().join('+');
-  const recallBestTime = bestTimes.find(
-    (t) => t.mode === 'recall' && [...t.levels].sort().join('+') === levelKey
-  );
-  const activeRecallBestTime = bestTimes.find(
-    (t) => t.mode === 'active-recall' && [...t.levels].sort().join('+') === levelKey
-  );
-  const conjugationBestTime = bestTimes.find(
-    (t) => t.mode === 'conjugation' && [...t.levels].sort().join('+') === levelKey
-  );
-  const imperfectBestTime = bestTimes.find(
-    (t) => t.mode === 'imperfect' && [...t.levels].sort().join('+') === levelKey
-  );
-  const gradationBestTime = bestTimes.find(
-    (t) => t.mode === 'consonant-gradation'
-  );
-
   const vocabularyWordCount = getTavoiteWordCount(selectedTavoites);
 
   return (
@@ -234,48 +213,22 @@ export function Menu({
           className={`tab-btn ${activeTab === 'cases' ? 'active' : ''}`}
           onClick={() => handleTabChange('cases')}
         >
-          <MapPinIcon size={18} /> Sijat (Cases)
+          <MapPinIcon size={18} /> Positional Cases
         </button>
         <button 
-          className={`tab-btn ${activeTab === 'reading' ? 'active' : ''}`}
-          onClick={() => handleTabChange('reading')}
+          className={`tab-btn ${activeTab === 'partitive' ? 'active' : ''}`}
+          onClick={() => handleTabChange('partitive')}
         >
-          <NewspaperIcon size={18} /> Lukeminen (Reading)
+          <TargetIcon size={18} /> Partitive
         </button>
       </div>
 
       {activeTab === 'cases' && (
         <>
-          <p className="menu-subtitle">Master Finnish cases - practice one at a time or combine</p>
+          <p className="menu-subtitle">Master Finnish cases by movement direction</p>
 
-          {/* Case Category Selection - Organized by Type */}
+          {/* Case Category Selection - Movement-Based Only */}
           <div className="case-selector">
-            {/* Individual Cases - Practice One at a Time */}
-            <div className="case-group-section">
-              <h3 className="case-section-title">Practice One Case</h3>
-              <p className="case-section-desc">Master each case ending individually</p>
-              <div className="case-category-grid individual">
-                {caseGroups.filter(g => g.groupType === 'individual').map((group) => {
-                  const isSelected = selectedCaseCategories.includes(group.id as CaseCategory);
-                  const progress = player.casesProgress?.find(cp => cp.category === group.id);
-                  const isCompleted = progress?.fillBlankCompleted;
-                  
-                  return (
-                    <button
-                      key={group.id}
-                      className={`case-category-btn compact ${isSelected ? 'selected' : ''} ${isCompleted ? 'completed' : ''}`}
-                      onClick={() => toggleCaseCategory(group.id as CaseCategory)}
-                      style={{ '--case-color': group.color } as React.CSSProperties}
-                    >
-                      <span className="case-category-name">{group.name}</span>
-                      <span className="case-category-desc">{group.description}</span>
-                      {isCompleted && <CheckIcon size={12} color="#4caf50" className="case-check" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
             {/* Movement-Based Groups */}
             <div className="case-group-section">
               <h3 className="case-section-title">Practice by Movement</h3>
@@ -299,42 +252,6 @@ export function Menu({
                       </div>
                       <span className="case-category-finnish">{group.finnishName}</span>
                       <span className="case-category-desc">{group.description}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Broad Groups */}
-            <div className="case-group-section">
-              <h3 className="case-section-title">Practice All Together</h3>
-              <p className="case-section-desc">Challenge yourself with mixed cases</p>
-              <div className="case-category-grid broad">
-                {caseGroups.filter(g => g.groupType === 'broad').map((group) => {
-                  const isSelected = selectedCaseCategories.includes(group.id as CaseCategory);
-                  const progress = player.casesProgress?.find(cp => cp.category === group.id);
-                  const isCompleted = progress?.fillBlankCompleted;
-                  
-                  return (
-                    <button
-                      key={group.id}
-                      className={`case-category-btn broad ${isSelected ? 'selected' : ''} ${isCompleted ? 'completed' : ''}`}
-                      onClick={() => toggleCaseCategory(group.id as CaseCategory)}
-                      style={{ '--case-color': group.color } as React.CSSProperties}
-                    >
-                      <div className="case-category-header">
-                        <span className="case-category-icon">
-                          {group.id === 'location' ? <GlobeIcon size={18} /> : <MapPinIcon size={18} />}
-                        </span>
-                        {isCompleted && <CheckIcon size={12} color="#4caf50" />}
-                      </div>
-                      <span className="case-category-name">{group.name}</span>
-                      <span className="case-category-desc">{group.description}</span>
-                      <div className="case-category-cases">
-                        {group.cases.map(c => (
-                          <span key={c} className="case-tag">{c}</span>
-                        ))}
-                      </div>
                     </button>
                   );
                 })}
@@ -407,164 +324,176 @@ export function Menu({
         </>
       )}
 
-      {activeTab === 'verbs' && (
+      {activeTab === 'partitive' && (
         <>
-          <p className="menu-subtitle">Master Finnish verbs level by level</p>
+          <p className="menu-subtitle">Master the Partitive case - one of Finnish's most used cases</p>
 
-          {/* Level Selection */}
-          <div className="level-selector">
-            <h3>Select Levels</h3>
-            <div className="level-buttons">
-              {LEVELS.map((level) => {
-                const isSelected = selectedLevels.includes(level);
-                const levelVerbs = verbsByLevel[level];
-                const progress = player.levelProgress.find((lp) => lp.level === level);
-                const completedCount = [
-                  progress?.recallCompleted,
-                  progress?.activeRecallCompleted,
-                  progress?.conjugationCompleted,
-                  progress?.imperfectCompleted,
-                ].filter(Boolean).length;
+          {/* Partitive Information */}
+          <div className="partitive-info-section">
+            <div className="partitive-reference-card">
+              <h4>Partitiivi (Partitive Case)</h4>
+              <div className="partitive-ending-info">
+                <div className="ending-group">
+                  <span className="ending-label">Endings:</span>
+                  <span className="ending-value">-a/-ä, -ta/-tä, -tta/-ttä</span>
+                </div>
+                <div className="ending-group">
+                  <span className="ending-label">Question:</span>
+                  <span className="ending-value">Mitä? (What? / Some of what?)</span>
+                </div>
+              </div>
+              
+              <div className="partitive-uses">
+                <h5>When to use Partitive:</h5>
+                <ul className="partitive-rules">
+                  <li><strong>After numbers:</strong> kolme autoa, viisi kirjaa</li>
+                  <li><strong>Uncountable amounts:</strong> paljon vettä, vähän maitoa</li>
+                  <li><strong>Negative sentences:</strong> Ei ole aikaa, En näe koiraa</li>
+                  <li><strong>Ongoing actions:</strong> Luen kirjaa (I am reading a book)</li>
+                  <li><strong>After certain verbs:</strong> pitää, rakastaa, odottaa</li>
+                  <li><strong>Materials/substances:</strong> Juon kahvia, Syön leipää</li>
+                </ul>
+              </div>
 
+              <div className="partitive-examples">
+                <h5>Examples:</h5>
+                <div className="example-grid">
+                  <div className="example-item">
+                    <span className="base">talo</span> → <span className="partitive">taloa</span>
+                  </div>
+                  <div className="example-item">
+                    <span className="base">koira</span> → <span className="partitive">koiraa</span>
+                  </div>
+                  <div className="example-item">
+                    <span className="base">vesi</span> → <span className="partitive">vettä</span>
+                  </div>
+                  <div className="example-item">
+                    <span className="base">kahvi</span> → <span className="partitive">kahvia</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Rule Selection */}
+          <div className="partitive-rule-selector">
+            <h3>Select Word Types to Practice</h3>
+            <div className="partitive-rule-grid">
+              {partitiveRules.map((rule) => {
+                const isSelected = selectedPartitiveRules.includes(rule.id);
+                
                 return (
                   <button
-                    key={level}
-                    className={`level-btn ${isSelected ? 'selected' : ''} ${completedCount > 0 ? 'completed' : ''}`}
-                    onClick={() => toggleLevel(level)}
+                    key={rule.id}
+                    className={`partitive-rule-btn ${isSelected ? 'selected' : ''}`}
+                    onClick={() => {
+                      if (isSelected) {
+                        if (selectedPartitiveRules.length > 1) {
+                          onSelectPartitiveRules(selectedPartitiveRules.filter(r => r !== rule.id));
+                        }
+                      } else {
+                        onSelectPartitiveRules([...selectedPartitiveRules, rule.id]);
+                      }
+                    }}
+                    style={{ '--rule-color': rule.color } as React.CSSProperties}
                   >
-                    <span className="level-name">{level}</span>
-                    <span className="level-count">{levelVerbs.length} verbs</span>
-                    <div className="level-status">
-                      {completedCount > 0 && (
-                        <span className="check">
-                          {Array.from({ length: completedCount }).map((_, i) => (
-                            <CheckIcon key={i} size={12} color="#4caf50" />
-                          ))}
-                        </span>
-                      )}
+                    <div className="rule-header">
+                      <span className="rule-name">{rule.name}</span>
                     </div>
+                    <span className="rule-description">{rule.description}</span>
+                    <span className="rule-formation">{rule.formation}</span>
+                    <span className="rule-example">{rule.examples[0]}</span>
                   </button>
                 );
               })}
             </div>
             <p className="selected-info">
-              Selected: {selectedLevels.join(' + ')} ({verbCount} verbs)
+              Selected: {selectedPartitiveRules.length} rule{selectedPartitiveRules.length !== 1 ? 's' : ''} ({getPartitiveWordCount(selectedPartitiveRules)} words)
+            </p>
+          </div>
+
+          {/* Game Mode */}
+          <div className="menu-modes partitive-modes">
+            <button
+              className="mode-button partitive"
+              onClick={() => onStartPartitiveSession(selectedPartitiveRules)}
+              disabled={selectedPartitiveRules.length === 0}
+            >
+              <div className="mode-info">
+                <span className="mode-name"><PencilIcon size={18} /> Practice Partitive Forms</span>
+                <span className="mode-desc">See a word, write its partitive form</span>
+              </div>
+              <div className="mode-best">
+                <span className="word-count">{getPartitiveWordCount(selectedPartitiveRules)} words</span>
+              </div>
+            </button>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'verbs' && (
+        <>
+          <p className="menu-subtitle">Master Finnish verbs by type - conjugate all forms</p>
+
+          {/* Verb Type Selection */}
+          <div className="verb-type-selector">
+            <h3>Select Verb Types</h3>
+            <div className="verb-type-grid">
+              {VERB_TYPES.map((type) => {
+                const typeVerbInfo = verbTypeInfo[type];
+                const typeVerbs = verbs.filter(v => v.type === type);
+                const isSelected = selectedVerbTypes.includes(type);
+
+                return (
+                  <button
+                    key={type}
+                    className={`verb-type-btn ${isSelected ? 'selected' : ''}`}
+                    onClick={() => toggleVerbType(type)}
+                  >
+                    <div className="verb-type-header">
+                      <span className="verb-type-number">Type {type}</span>
+                    </div>
+                    <span className="verb-type-name">{typeVerbInfo?.name.split(' ')[0]}</span>
+                    <span className="verb-type-example">e.g. {typeVerbInfo?.examples[0]}</span>
+                    <span className="verb-type-count">{typeVerbs.length} verbs</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="selected-info">
+              Selected: Type {selectedVerbTypes.join(', ')} ({verbsByTypeCount} verbs)
             </p>
           </div>
 
           {/* Game Modes */}
-          <div className="menu-modes">
-            {/* Recall Mode */}
+          <div className="menu-modes verb-type-modes">
+            {/* Present Tense Mode */}
             <button
-              className="mode-button"
-              onClick={() => onStartSession('recall', selectedLevels)}
+              className="mode-button verb-type"
+              onClick={() => onStartVerbTypeSession('present', selectedVerbTypes)}
+              disabled={selectedVerbTypes.length === 0}
             >
               <div className="mode-info">
-                <span className="mode-name">1. Recall</span>
-                <span className="mode-desc">Finnish → English</span>
+                <span className="mode-name">🎯 Preesens (Present Tense)</span>
+                <span className="mode-desc">Write all 6 present tense forms for each verb</span>
               </div>
               <div className="mode-best">
-                {recallBestTime ? (
-                  <>
-                    <span className="best-label">Best</span>
-                    <span className="best-time">{formatTime(recallBestTime.timeMs)}</span>
-                  </>
-                ) : (
-                  <span className="best-label">Not completed</span>
-                )}
+                <span className="word-count">{verbsByTypeCount} verbs × 6 forms</span>
               </div>
             </button>
 
-            {/* Active Recall Mode */}
+            {/* Past Simple Mode */}
             <button
-              className={`mode-button ${activeRecallUnlocked ? '' : 'locked'}`}
-              onClick={() => activeRecallUnlocked && onStartSession('active-recall', selectedLevels)}
-              disabled={!activeRecallUnlocked}
+              className="mode-button verb-type"
+              onClick={() => onStartVerbTypeSession('imperfect', selectedVerbTypes)}
+              disabled={selectedVerbTypes.length === 0}
             >
               <div className="mode-info">
-                <span className="mode-name">2. Active Recall</span>
-                <span className="mode-desc">English → Finnish</span>
+                <span className="mode-name">📜 Imperfekti (Past Simple)</span>
+                <span className="mode-desc">Write all 6 past tense forms for each verb</span>
               </div>
               <div className="mode-best">
-                {!activeRecallUnlocked ? (
-                  <span className="locked-text">Complete Recall with 0 mistakes</span>
-                ) : activeRecallBestTime ? (
-                  <>
-                    <span className="best-label">Best</span>
-                    <span className="best-time">{formatTime(activeRecallBestTime.timeMs)}</span>
-                  </>
-                ) : (
-                  <span className="best-label">Not completed</span>
-                )}
-              </div>
-            </button>
-
-            {/* Conjugation Mode */}
-            <button
-              className={`mode-button ${conjugationUnlocked ? '' : 'locked'}`}
-              onClick={() => conjugationUnlocked && onStartSession('conjugation', selectedLevels)}
-              disabled={!conjugationUnlocked}
-            >
-              <div className="mode-info">
-                <span className="mode-name">3. Conjugation</span>
-                <span className="mode-desc">Conjugate verbs (all persons)</span>
-              </div>
-              <div className="mode-best">
-                {!conjugationUnlocked ? (
-                  <span className="locked-text">Complete Active Recall with 0 mistakes</span>
-                ) : conjugationBestTime ? (
-                  <>
-                    <span className="best-label">Best</span>
-                    <span className="best-time">{formatTime(conjugationBestTime.timeMs)}</span>
-                  </>
-                ) : (
-                  <span className="best-label">Not completed</span>
-                )}
-              </div>
-            </button>
-
-            {/* Imperfect Mode */}
-            <button
-              className={`mode-button ${imperfectUnlocked ? '' : 'locked'}`}
-              onClick={() => imperfectUnlocked && onStartSession('imperfect', selectedLevels)}
-              disabled={!imperfectUnlocked}
-            >
-              <div className="mode-info">
-                <span className="mode-name">4. Imperfect Tense</span>
-                <span className="mode-desc">Past tense conjugation practice</span>
-              </div>
-              <div className="mode-best">
-                {!imperfectUnlocked ? (
-                  <span className="locked-text">Complete Conjugation with 0 mistakes</span>
-                ) : imperfectBestTime ? (
-                  <>
-                    <span className="best-label">Best</span>
-                    <span className="best-time">{formatTime(imperfectBestTime.timeMs)}</span>
-                  </>
-                ) : (
-                  <span className="best-label">Not completed</span>
-                )}
-              </div>
-            </button>
-
-            {/* Consonant Gradation Mode */}
-            <button
-              className="mode-button"
-              onClick={() => onStartSession('consonant-gradation', [])}
-            >
-              <div className="mode-info">
-                <span className="mode-name">5. Consonant Gradation</span>
-                <span className="mode-desc">KPT-vaihtelu practice (True/False + Fill blanks)</span>
-              </div>
-              <div className="mode-best">
-                {gradationBestTime ? (
-                  <>
-                    <span className="best-label">Best</span>
-                    <span className="best-time">{formatTime(gradationBestTime.timeMs)}</span>
-                  </>
-                ) : (
-                  <span className="best-label">Not completed</span>
-                )}
+                <span className="word-count">{verbsByTypeCount} verbs × 6 forms</span>
               </div>
             </button>
           </div>
@@ -593,46 +522,8 @@ export function Menu({
             <>
               <p className="menu-subtitle">Suomen Mestari 2 - Kappale sanasto</p>
 
-              {/* SM2 Chapter Selection */}
-              <div className="sm2-selector">
-                <div className="sm2-header">
-                  <h3>Valitse kappale</h3>
-                  <div className="sm2-actions">
-                    <button className="small-btn" onClick={selectAllSM2Chapters}>Kaikki</button>
-                    <button className="small-btn" onClick={clearSM2Selection}>Tyhjennä</button>
-                  </div>
-                </div>
-                <div className="sm2-chapter-grid">
-                  {allSM2Chapters.map((chapter) => {
-                    const isSelected = selectedSM2Chapters.includes(chapter.id);
-                    const progress = player.sm2Progress?.find(p => p.chapterId === chapter.id);
-                    const isCompleted = progress?.activeRecallCompleted || false;
-                    return (
-                      <button
-                        key={chapter.id}
-                        className={`sm2-chapter-btn ${isSelected ? 'selected' : ''} ${isCompleted ? 'completed' : ''}`}
-                        onClick={() => toggleSM2Chapter(chapter.id)}
-                      >
-                        <div className="sm2-chapter-header">
-                          <span className="sm2-chapter-num">Kappale {chapter.id}</span>
-                          {isCompleted && <CheckIcon size={12} color="#4caf50" />}
-                        </div>
-                        <span className="sm2-chapter-name">{chapter.nameEnglish}</span>
-                        <span className="sm2-chapter-count">{chapter.words.length} sanaa</span>
-                        {progress?.bestTimeMs && (
-                          <span className="sm2-chapter-time">{formatTime(progress.bestTimeMs)}</span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="selected-info">
-                  Valittu: {selectedSM2Chapters.length} kappale{selectedSM2Chapters.length !== 1 ? 'tta' : ''} ({sm2WordCount} sanaa)
-                </p>
-              </div>
-
               {/* SM2 Cycle Selection for All Modes */}
-              <div className="sm2-cycle-selector" style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
+              <div className="sm2-cycle-selector" style={{ marginTop: '1rem', marginBottom: '1rem' }}>
                 <div className="sm2-header">
                   <h3>Valitse sykli</h3>
                   <div className="sm2-actions">
@@ -853,60 +744,6 @@ export function Menu({
               </div>
             </>
           )}
-        </>
-      )}
-
-      {activeTab === 'reading' && (
-        <>
-          <p className="menu-subtitle">Lue ja ymmärrä · Read Finnish articles</p>
-
-          <div className="reading-sections-container">
-            {/* A1 Simplified Articles */}
-            <div className="reading-menu-section">
-              <div className="reading-menu-header">
-                <span className="reading-menu-level">A1</span>
-                <span className="reading-menu-label">Aloittelija</span>
-              </div>
-
-              <div className="reading-article-grid">
-                {a1Articles.map((article) => (
-                  <button
-                    key={article.id}
-                    className="reading-article-btn"
-                    onClick={() => onStartReading(article)}
-                  >
-                    <span className="rab-topic">{article.topic}</span>
-                    <span className="rab-title">{article.title}</span>
-                    <span className="rab-meta">{article.vocabulary.length} sanaa · {article.questions.length} kysymystä</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Yle News - Real Articles */}
-            <div className="reading-menu-section yle-news-section">
-              <div className="reading-menu-header yle-news-header">
-                <span className="reading-menu-level yle-news-badge">YLE</span>
-                <span className="reading-menu-label">Uutiset</span>
-              </div>
-              <p className="yle-news-desc">Aitoja uutisia Yleltä · Real news from Yle</p>
-
-              <div className="reading-article-grid">
-                {yleNewsArticles.map((article) => (
-                  <button
-                    key={article.id}
-                    className="reading-article-btn yle-news-btn"
-                    onClick={() => onStartReading(article)}
-                  >
-                    <span className="rab-topic">{article.topic}</span>
-                    <span className="rab-title">{article.title}</span>
-                    <span className="rab-meta">{article.vocabulary.length} sanaa · {article.questions.length} kysymystä</span>
-                    <span className="rab-level-indicator">{article.level}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
         </>
       )}
 
