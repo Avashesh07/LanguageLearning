@@ -1,6 +1,6 @@
 // Finnish Verb Arena - Types
 
-export type GameMode = 'menu' | 'recall' | 'active-recall' | 'conjugation' | 'consonant-gradation' | 'imperfect' | 'vocabulary-recall' | 'vocabulary-active-recall' | 'vocabulary-memorise' | 'cases-fill-blank' | 'verb-type-present' | 'verb-type-imperfect' | 'partitive';
+export type GameMode = 'menu' | 'recall' | 'active-recall' | 'conjugation' | 'consonant-gradation' | 'imperfect' | 'vocabulary-recall' | 'vocabulary-active-recall' | 'vocabulary-memorise' | 'cases-fill-blank' | 'verb-type-present' | 'verb-type-imperfect' | 'partitive' | 'lyrics';
 
 export type VerbLevel = 'A1' | 'A2' | 'B1';
 
@@ -102,6 +102,7 @@ export interface PlayerState {
   casesProgress?: CasesProgress[]; // Track cases game progress
   sm2Progress?: SM2ChapterProgress[]; // Track Suomen Mestari 2 chapter completions
   sm2CycleProgress?: SM2CycleProgress[]; // Track Suomen Mestari 2 cycle completions (for memorise mode)
+  lyricsProgress?: SongProgress[]; // Track song lyrics learning progress
 }
 
 // Full game state
@@ -130,6 +131,9 @@ export interface GameState {
   // Partitive Case specific
   partitiveSession?: PartitiveSessionState;
   currentPartitiveWord?: CurrentPartitiveWord;
+  // Lyrics Learning specific
+  lyricsSession?: LyricsSessionState;
+  currentLyricsItem?: CurrentLyricsItem;
 }
 
 export interface FeedbackData {
@@ -341,4 +345,81 @@ export interface CurrentPartitiveWord {
   translation: string;
   rule: PartitiveRule;
   hint?: string;
+}
+
+// Lyrics Learning Types
+export type LyricsSubMode = 
+  | 'word-match'        // Choose correct English for Finnish word
+  | 'word-recall'       // Type Finnish word from English
+  | 'line-translate'    // Match Finnish line to English
+  | 'fill-blank'        // Fill in missing word in a line
+  | 'word-order';       // Arrange words in correct order
+
+export interface LyricsWordState {
+  finnish: string;
+  english: string;
+  grammarNote?: string;
+  baseForm?: string;
+  correctCount: number;
+  wrongCount: number;
+  eliminated: boolean;
+  consecutiveCorrect: number;
+}
+
+export interface LyricsLineState {
+  index: number;
+  finnish: string;
+  english: string;
+  correctCount: number;
+  wrongCount: number;
+  eliminated: boolean;
+}
+
+export interface LyricsSessionState {
+  mode: 'lyrics';
+  subMode: LyricsSubMode;
+  songId: string;
+  songTitle: string;
+  // For word modes
+  words: LyricsWordState[];
+  currentWordIndex: number;
+  // For line modes
+  lines: LyricsLineState[];
+  currentLineIndex: number;
+  // For fill-blank mode
+  currentBlankWord?: string;
+  currentSentenceWithBlank?: string;
+  // For word-order mode
+  shuffledWords?: string[];
+  // General
+  startTime: number | null;
+  endTime: number | null;
+  wrongCount: number;
+  isComplete: boolean;
+}
+
+export interface CurrentLyricsItem {
+  // For word modes
+  finnish?: string;
+  english?: string;
+  grammarNote?: string;
+  baseForm?: string;
+  // For line modes
+  finnishLine?: string;
+  englishLine?: string;
+  // For fill-blank
+  sentenceWithBlank?: string;
+  missingWord?: string;
+  // For word-order
+  correctOrder?: string[];
+  shuffledWords?: string[];
+  // For multiple choice
+  options?: string[];
+}
+
+export interface SongProgress {
+  songId: string;
+  wordsLearned: number;
+  linesLearned: number;
+  lastPlayed: string;
 }

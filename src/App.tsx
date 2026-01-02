@@ -8,7 +8,7 @@ import { StudyScreen } from './components/StudyScreen';
 import { getSM2CycleById } from './data/suomenMestari2';
 
 function App() {
-  const [lastActiveTab, setLastActiveTab] = useState<'verbs' | 'vocabulary' | 'cases' | 'partitive'>('verbs');
+  const [lastActiveTab, setLastActiveTab] = useState<'verbs' | 'vocabulary' | 'cases' | 'partitive' | 'lyrics'>('verbs');
   const [studyMode, setStudyMode] = useState<{ active: boolean; cycleIds: string[] }>({ active: false, cycleIds: [] });
   const {
     state,
@@ -51,6 +51,14 @@ function App() {
     startPartitiveSession,
     getPartitiveWordCount,
     partitiveRules,
+    // Lyrics
+    selectedSongId,
+    setSelectedSongId,
+    selectedLyricsMode,
+    setSelectedLyricsMode,
+    startLyricsSession,
+    getSongInfo,
+    allSongs,
   } = useGameState();
 
   const isSessionComplete = state.session?.isComplete;
@@ -59,7 +67,8 @@ function App() {
   const isCasesComplete = state.casesSession?.isComplete;
   const isVerbTypeComplete = state.verbTypeSession?.isComplete;
   const isPartitiveComplete = state.partitiveSession?.isComplete;
-  const isComplete = isSessionComplete || isGradationComplete || isVocabularyComplete || isCasesComplete || isVerbTypeComplete || isPartitiveComplete;
+  const isLyricsComplete = state.lyricsSession?.isComplete;
+  const isComplete = isSessionComplete || isGradationComplete || isVocabularyComplete || isCasesComplete || isVerbTypeComplete || isPartitiveComplete || isLyricsComplete;
 
   // Track which tab should be active based on current mode
   useEffect(() => {
@@ -69,6 +78,8 @@ function App() {
       setLastActiveTab('cases');
     } else if (state.mode === 'partitive') {
       setLastActiveTab('partitive');
+    } else if (state.mode === 'lyrics') {
+      setLastActiveTab('lyrics');
     } else if (state.mode === 'verb-type-present' || state.mode === 'verb-type-imperfect') {
       setLastActiveTab('verbs');
     } else if (state.mode === 'menu') {
@@ -102,6 +113,9 @@ function App() {
     } else if (state.mode === 'partitive') {
       // Partitive - replay with same rules
       startPartitiveSession(selectedPartitiveRules);
+    } else if (state.mode === 'lyrics') {
+      // Lyrics - replay with same song and mode
+      startLyricsSession(selectedSongId, selectedLyricsMode);
     } else {
       returnToMenu();
     }
@@ -176,6 +190,13 @@ function App() {
           onStartPartitiveSession={startPartitiveSession}
           getPartitiveWordCount={getPartitiveWordCount}
           partitiveRules={partitiveRules}
+          selectedSongId={selectedSongId}
+          onSelectSongId={setSelectedSongId}
+          selectedLyricsMode={selectedLyricsMode}
+          onSelectLyricsMode={setSelectedLyricsMode}
+          onStartLyricsSession={startLyricsSession}
+          getSongInfo={getSongInfo}
+          allSongs={allSongs}
           initialTab={lastActiveTab}
           onTabChange={setLastActiveTab}
         />
@@ -193,6 +214,7 @@ function App() {
           casesSession={state.casesSession}
           verbTypeSession={state.verbTypeSession}
           partitiveSession={state.partitiveSession}
+          lyricsSession={state.lyricsSession}
         />
       ) : (
         <GameScreen

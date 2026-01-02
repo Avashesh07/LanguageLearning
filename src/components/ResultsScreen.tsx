@@ -1,4 +1,4 @@
-import type { SessionState, PlayerState, GameMode, VerbLevel, ConsonantGradationSessionState, VocabularySessionState, CasesSessionState, VerbTypeSessionState, PartitiveSessionState } from '../types';
+import type { SessionState, PlayerState, GameMode, VerbLevel, ConsonantGradationSessionState, VocabularySessionState, CasesSessionState, VerbTypeSessionState, PartitiveSessionState, LyricsSessionState } from '../types';
 import { StarIcon, TrophyIcon, MapPinIcon, TargetIcon } from './Icons';
 
 interface ResultsScreenProps {
@@ -14,6 +14,7 @@ interface ResultsScreenProps {
   casesSession?: CasesSessionState;
   verbTypeSession?: VerbTypeSessionState;
   partitiveSession?: PartitiveSessionState;
+  lyricsSession?: LyricsSessionState;
 }
 
 const MODE_NAMES: Record<GameMode, string> = {
@@ -30,6 +31,7 @@ const MODE_NAMES: Record<GameMode, string> = {
   'verb-type-present': 'Present Tense Conjugation',
   'verb-type-imperfect': 'Past Tense Conjugation',
   'partitive': 'Partitive Case Practice',
+  'lyrics': 'Song Lyrics Learning',
 };
 
 export function ResultsScreen({
@@ -45,6 +47,7 @@ export function ResultsScreen({
   casesSession,
   verbTypeSession,
   partitiveSession,
+  lyricsSession,
 }: ResultsScreenProps) {
   // Handle different modes
   const isGradationMode = mode === 'consonant-gradation';
@@ -53,6 +56,7 @@ export function ResultsScreen({
   const isCasesMode = mode === 'cases-fill-blank';
   const isVerbTypeMode = mode === 'verb-type-present' || mode === 'verb-type-imperfect';
   const isPartitiveMode = mode === 'partitive';
+  const isLyricsMode = mode === 'lyrics';
   
   let timeMs: number;
   let isPerfect: boolean;
@@ -95,6 +99,15 @@ export function ResultsScreen({
     totalQuestions = partitiveSession.words.length;
     const totalAttempts = partitiveSession.words.reduce((sum, w) => sum + w.correctCount, 0) + partitiveSession.wrongCount;
     accuracy = totalAttempts > 0 ? Math.round(((totalAttempts - partitiveSession.wrongCount) / totalAttempts) * 100) : 100;
+  } else if (isLyricsMode && lyricsSession) {
+    timeMs = lyricsSession.endTime! - lyricsSession.startTime!;
+    isPerfect = lyricsSession.wrongCount === 0;
+    wrongCount = lyricsSession.wrongCount;
+    const isWordMode = lyricsSession.subMode === 'word-match' || lyricsSession.subMode === 'word-recall';
+    totalQuestions = isWordMode ? lyricsSession.words.length : lyricsSession.lines.length;
+    const items = isWordMode ? lyricsSession.words : lyricsSession.lines;
+    const totalAttempts = items.reduce((sum, item) => sum + item.correctCount, 0) + lyricsSession.wrongCount;
+    accuracy = totalAttempts > 0 ? Math.round(((totalAttempts - lyricsSession.wrongCount) / totalAttempts) * 100) : 100;
   } else if (session) {
     timeMs = session.endTime! - session.startTime!;
     isPerfect = session.wrongCount === 0;
@@ -136,10 +149,11 @@ export function ResultsScreen({
         {isPerfect ? 'PERFECT!' : 'COMPLETED'}
       </h1>
 
-      <div className={`results-mode ${isVocabularyMode || isMemoriseMode ? 'vocabulary' : ''} ${isCasesMode ? 'cases' : ''} ${isVerbTypeMode ? 'verb-type' : ''} ${isPartitiveMode ? 'partitive' : ''}`}>
+      <div className={`results-mode ${isVocabularyMode || isMemoriseMode ? 'vocabulary' : ''} ${isCasesMode ? 'cases' : ''} ${isVerbTypeMode ? 'verb-type' : ''} ${isPartitiveMode ? 'partitive' : ''} ${isLyricsMode ? 'lyrics' : ''}`}>
         {isCasesMode && <MapPinIcon size={20} />}
         {isVerbTypeMode && <TargetIcon size={20} />}
         {isPartitiveMode && <TargetIcon size={20} />}
+        {isLyricsMode && '🎵'}
         {MODE_NAMES[mode]}
       </div>
 
@@ -159,7 +173,14 @@ export function ResultsScreen({
         </div>
       )}
 
-      {!isGradationMode && !isVocabularyMode && !isCasesMode && !isVerbTypeMode && !isPartitiveMode && (
+      {isLyricsMode && lyricsSession && (
+        <div className="results-lyrics-info">
+          <span className="song-badge">🎵 {lyricsSession.songTitle}</span>
+          <span className="mode-badge">{lyricsSession.subMode}</span>
+        </div>
+      )}
+
+      {!isGradationMode && !isVocabularyMode && !isCasesMode && !isVerbTypeMode && !isPartitiveMode && !isLyricsMode && (
         <div className="results-levels">
           {levels.map((level) => (
             <span key={level} className="level-badge">{level}</span>
@@ -209,7 +230,7 @@ export function ResultsScreen({
 
         <div className="result-item">
           <span className="result-label">
-            {isGradationMode ? 'Questions' : isVocabularyMode ? 'Words' : isCasesMode ? 'Sentences' : isVerbTypeMode ? 'Verbs' : isPartitiveMode ? 'Words' : 'Verbs'}
+            {isGradationMode ? 'Questions' : isVocabularyMode ? 'Words' : isCasesMode ? 'Sentences' : isVerbTypeMode ? 'Verbs' : isPartitiveMode ? 'Words' : isLyricsMode ? (lyricsSession?.subMode === 'word-match' || lyricsSession?.subMode === 'word-recall' ? 'Words' : 'Lines') : 'Verbs'}
           </span>
           <span className="result-value">{totalQuestions}</span>
         </div>

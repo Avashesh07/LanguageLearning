@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import type { PlayerState, CaseCategory, PartitiveRule } from '../types';
+import type { PlayerState, CaseCategory, PartitiveRule, LyricsSubMode } from '../types';
 import { verbs, verbTypeInfo } from '../data/verbs';
 import type { Tavoite } from '../data/tavoiteVocabulary';
 import type { SM2Chapter, SM2Cycle } from '../data/suomenMestari2';
 import type { CaseGroup } from '../data/finnishCases';
 import type { PartitiveRuleInfo } from '../data/partitiveData';
+import type { Song } from '../data/songs';
 import { TargetIcon, BookIcon, OpenBookIcon, PencilIcon, CheckIcon, MapPinIcon } from './Icons';
 
 interface MenuProps {
@@ -46,9 +47,17 @@ interface MenuProps {
   onStartPartitiveSession: (rules: PartitiveRule[]) => void;
   getPartitiveWordCount: (rules: PartitiveRule[]) => number;
   partitiveRules: PartitiveRuleInfo[];
+  // Lyrics props
+  selectedSongId: string;
+  onSelectSongId: (songId: string) => void;
+  selectedLyricsMode: LyricsSubMode;
+  onSelectLyricsMode: (mode: LyricsSubMode) => void;
+  onStartLyricsSession: (songId: string, mode: LyricsSubMode) => void;
+  getSongInfo: (songId: string) => { title: string; artist: string; wordCount: number; lineCount: number; difficulty: string } | null;
+  allSongs: Song[];
   // Tab management
-  initialTab?: 'verbs' | 'vocabulary' | 'cases' | 'partitive';
-  onTabChange?: (tab: 'verbs' | 'vocabulary' | 'cases' | 'partitive') => void;
+  initialTab?: 'verbs' | 'vocabulary' | 'cases' | 'partitive' | 'lyrics';
+  onTabChange?: (tab: 'verbs' | 'vocabulary' | 'cases' | 'partitive' | 'lyrics') => void;
 }
 
 const VERB_TYPES = [1, 2, 3, 4, 5, 6] as const;
@@ -84,17 +93,24 @@ export function Menu({
   onStartPartitiveSession,
   getPartitiveWordCount,
   partitiveRules,
+  selectedSongId,
+  onSelectSongId,
+  selectedLyricsMode,
+  onSelectLyricsMode,
+  onStartLyricsSession,
+  getSongInfo,
+  allSongs,
   initialTab = 'verbs',
   onTabChange,
 }: MenuProps) {
-  const [activeTab, setActiveTab] = useState<'verbs' | 'vocabulary' | 'cases' | 'partitive'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'verbs' | 'vocabulary' | 'cases' | 'partitive' | 'lyrics'>(initialTab);
   
   // Update local state when initialTab changes (e.g., when returning from quiz)
   useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab]);
   
-  const handleTabChange = (tab: 'verbs' | 'vocabulary' | 'cases' | 'partitive') => {
+  const handleTabChange = (tab: 'verbs' | 'vocabulary' | 'cases' | 'partitive' | 'lyrics') => {
     setActiveTab(tab);
     onTabChange?.(tab);
   };
@@ -197,6 +213,12 @@ export function Menu({
           onClick={() => handleTabChange('partitive')}
         >
           <TargetIcon size={18} /> Partitive
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'lyrics' ? 'active' : ''}`}
+          onClick={() => handleTabChange('lyrics')}
+        >
+          🎵 Song Lyrics
         </button>
       </div>
 
@@ -405,6 +427,130 @@ export function Menu({
               </div>
             </button>
           </div>
+        </>
+      )}
+
+      {activeTab === 'lyrics' && (
+        <>
+          <p className="menu-subtitle">Learn Finnish through your favorite songs 🎶</p>
+
+          {/* Song Selection */}
+          <div className="lyrics-song-selector">
+            <h3>Select a Song</h3>
+            <div className="song-grid">
+              {allSongs.map((song) => {
+                const info = getSongInfo(song.id);
+                const isSelected = selectedSongId === song.id;
+                
+                return (
+                  <button
+                    key={song.id}
+                    className={`song-card ${isSelected ? 'selected' : ''}`}
+                    onClick={() => onSelectSongId(song.id)}
+                  >
+                    <div className="song-header">
+                      <span className="song-title">{song.title}</span>
+                      <span className={`song-difficulty ${song.difficulty}`}>{song.difficulty}</span>
+                    </div>
+                    <span className="song-artist">by {song.artist}</span>
+                    <div className="song-stats">
+                      <span className="song-stat">📝 {info?.wordCount || 0} words</span>
+                      <span className="song-stat">📄 {info?.lineCount || 0} lines</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Game Mode Selection */}
+          {selectedSongId && (
+            <div className="lyrics-mode-selector">
+              <h3>Choose Practice Mode</h3>
+              <div className="lyrics-mode-grid">
+                <button
+                  className={`lyrics-mode-btn ${selectedLyricsMode === 'word-match' ? 'selected' : ''}`}
+                  onClick={() => onSelectLyricsMode('word-match')}
+                >
+                  <span className="mode-icon">🎯</span>
+                  <span className="mode-title">Word Match</span>
+                  <span className="mode-desc">Match Finnish words to English meanings</span>
+                </button>
+                <button
+                  className={`lyrics-mode-btn ${selectedLyricsMode === 'word-recall' ? 'selected' : ''}`}
+                  onClick={() => onSelectLyricsMode('word-recall')}
+                >
+                  <span className="mode-icon">✍️</span>
+                  <span className="mode-title">Word Recall</span>
+                  <span className="mode-desc">Type the Finnish word from English</span>
+                </button>
+                <button
+                  className={`lyrics-mode-btn ${selectedLyricsMode === 'line-translate' ? 'selected' : ''}`}
+                  onClick={() => onSelectLyricsMode('line-translate')}
+                >
+                  <span className="mode-icon">📖</span>
+                  <span className="mode-title">Line Translation</span>
+                  <span className="mode-desc">Match Finnish lines to English translations</span>
+                </button>
+                <button
+                  className={`lyrics-mode-btn ${selectedLyricsMode === 'fill-blank' ? 'selected' : ''}`}
+                  onClick={() => onSelectLyricsMode('fill-blank')}
+                >
+                  <span className="mode-icon">🔤</span>
+                  <span className="mode-title">Fill in the Blank</span>
+                  <span className="mode-desc">Complete the missing word in a line</span>
+                </button>
+                <button
+                  className={`lyrics-mode-btn ${selectedLyricsMode === 'word-order' ? 'selected' : ''}`}
+                  onClick={() => onSelectLyricsMode('word-order')}
+                >
+                  <span className="mode-icon">🔀</span>
+                  <span className="mode-title">Word Order</span>
+                  <span className="mode-desc">Arrange shuffled words in correct order</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Start Button */}
+          {selectedSongId && (
+            <div className="menu-modes lyrics-modes">
+              <button
+                className="mode-button lyrics"
+                onClick={() => onStartLyricsSession(selectedSongId, selectedLyricsMode)}
+              >
+                <div className="mode-info">
+                  <span className="mode-name">🎵 Start Learning</span>
+                  <span className="mode-desc">
+                    {selectedLyricsMode === 'word-match' && 'Match words to their meanings'}
+                    {selectedLyricsMode === 'word-recall' && 'Practice typing Finnish words'}
+                    {selectedLyricsMode === 'line-translate' && 'Learn full sentences'}
+                    {selectedLyricsMode === 'fill-blank' && 'Complete the lyrics'}
+                    {selectedLyricsMode === 'word-order' && 'Rearrange the words'}
+                  </span>
+                </div>
+                <div className="mode-best">
+                  <span className="word-count">
+                    {(selectedLyricsMode === 'word-match' || selectedLyricsMode === 'word-recall') 
+                      ? `${getSongInfo(selectedSongId)?.wordCount || 0} words`
+                      : `${getSongInfo(selectedSongId)?.lineCount || 0} lines`
+                    }
+                  </span>
+                </div>
+              </button>
+            </div>
+          )}
+
+          {/* Song Preview */}
+          {selectedSongId && (
+            <div className="lyrics-preview">
+              <h3>Preview: {getSongInfo(selectedSongId)?.title}</h3>
+              <div className="preview-note">
+                <p>This song contains vocabulary about emotions, relationships, and everyday life. 
+                Learn words through the context of music - it's the most natural way!</p>
+              </div>
+            </div>
+          )}
         </>
       )}
 

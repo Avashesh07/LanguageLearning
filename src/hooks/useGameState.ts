@@ -24,7 +24,13 @@ import type {
   PartitiveRule,
   PartitiveSessionState,
   PartitiveWordState,
+  LyricsSubMode,
+  LyricsSessionState,
+  LyricsWordState,
+  LyricsLineState,
+  CurrentLyricsItem,
 } from '../types';
+import { SONGS, getSongById, getSongWords, getUniqueSongLines, type Song, type SongWord, type SongLine } from '../data/songs';
 import { verbs, verbTypeInfo, negativeInfo, getRandomSentence, getRandomImperfectSentence, persons, getVerbsForLevels } from '../data/verbs';
 import { getAllRules, createPracticeQuestions, type GradationRule } from '../data/consonantGradation';
 import { saveToCSV, loadFromCSV } from '../utils/csvDatabase';
@@ -45,6 +51,7 @@ type GameAction =
   | { type: 'START_SM2_MEMORISE_SESSION'; cycleIds: string[] }
   | { type: 'START_CASES_SESSION'; categories: CaseCategory[] }
   | { type: 'START_PARTITIVE_SESSION'; rules: PartitiveRule[] }
+  | { type: 'START_LYRICS_SESSION'; songId: string; subMode: LyricsSubMode }
   | { type: 'SUBMIT_ANSWER'; answer: string }
   | { type: 'NEXT_VERB' }
   | { type: 'CLEAR_FEEDBACK' }
@@ -958,6 +965,151 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
 
+    case 'START_LYRICS_SESSION': {
+      const song = getSongById(action.songId);
+      if (!song) return state;
+      
+      const words = getSongWords(song);
+      const lines = getUniqueSongLines(song);
+      const subMode = action.subMode;
+      
+      // Create lyrics session based on sub-mode
+      const lyricsSession: LyricsSessionState = {
+        mode: 'lyrics',
+        subMode,
+        songId: song.id,
+        songTitle: song.title,
+        words: words.map(w => ({
+          finnish: w.finnish,
+          english: w.english,
+          grammarNote: w.grammarNote,
+          baseForm: w.baseForm,
+          correctCount: 0,
+          wrongCount: 0,
+          eliminated: false,
+          consecutiveCorrect: 0,
+        })).sort(() => Math.random() - 0.5), // Shuffle words for word-based modes
+        currentWordIndex: 0,
+        // Keep lines in sequential order for line-based modes (learn song in order)
+        lines: lines.map((line, idx) => ({
+          index: idx,
+          finnish: line.finnish,
+          english: line.english,
+          correctCount: 0,
+          wrongCount: 0,
+          eliminated: false,
+        })), // No shuffle - follow song sequence
+        currentLineIndex: 0,
+        startTime: Date.now(),
+        endTime: null,
+        wrongCount: 0,
+        isComplete: false,
+      };
+      
+      // Set up current item based on sub-mode
+      let currentLyricsItem: CurrentLyricsItem | undefined;
+      
+      if (subMode === 'word-match' || subMode === 'word-recall') {
+        const firstWord = lyricsSession.words[0];
+        if (firstWord) {
+          // Generate multiple choice options for word-match
+          const otherWords = lyricsSession.words.filter(w => w.finnish !== firstWord.finnish);
+          const wrongOptions = otherWords
+            .sort(() => Math.random() - 0.5)
+            .slice(0, 3)
+            .map(w => w.english);
+          const allOptions = [firstWord.english, ...wrongOptions].sort(() => Math.random() - 0.5);
+          
+          currentLyricsItem = {
+            finnish: firstWord.finnish,
+            english: firstWord.english,
+            grammarNote: firstWord.grammarNote,
+            baseForm: firstWord.baseForm,
+            options: subMode === 'word-match' ? allOptions : undefined,
+          };
+        }
+      } else if (subMode === 'line-translate') {
+        const firstLine = lyricsSession.lines[0];
+        if (firstLine) {
+          // Generate multiple choice options
+          const otherLines = lyricsSession.lines.filter(l => l.finnish !== firstLine.finnish);
+          const wrongOptions = otherLines
+            .sort(() => Math.random() - 0.5)
+            .slice(0, 3)
+            .map(l => l.english);
+          const allOptions = [firstLine.english, ...wrongOptions].sort(() => Math.random() - 0.5);
+          
+          currentLyricsItem = {
+            finnishLine: firstLine.finnish,
+            englishLine: firstLine.english,
+            options: allOptions,
+          };
+        }
+      } else if (subMode === 'fill-blank') {
+        const firstLine = lyricsSession.lines[0];
+        if (firstLine) {
+          // Find the original line to get words
+          const originalLine = lines.find(l => l.finnish === firstLine.finnish);
+          if (originalLine && originalLine.words.length > 0) {
+            // Pick a random word to blank out
+            const blankIdx = Math.floor(Math.random() * originalLine.words.length);
+            const blankWord = originalLine.words[blankIdx];
+            const sentenceWithBlank = firstLine.finnish.replace(
+              new RegExp(`\\b${blankWord.finnish}\\b`, 'i'),
+              '_____'
+            );
+            
+            lyricsSession.currentBlankWord = blankWord.finnish;
+            lyricsSession.currentSentenceWithBlank = sentenceWithBlank;
+            
+            currentLyricsItem = {
+              finnishLine: firstLine.finnish,
+              englishLine: firstLine.english,
+              sentenceWithBlank,
+              missingWord: blankWord.finnish,
+            };
+          }
+        }
+      } else if (subMode === 'word-order') {
+        const firstLine = lyricsSession.lines[0];
+        if (firstLine) {
+          const wordsInOrder = firstLine.finnish.split(/\s+/);
+          const shuffled = [...wordsInOrder].sort(() => Math.random() - 0.5);
+          
+          lyricsSession.shuffledWords = shuffled;
+          
+          currentLyricsItem = {
+            finnishLine: firstLine.finnish,
+            englishLine: firstLine.english,
+            correctOrder: wordsInOrder,
+            shuffledWords: shuffled,
+          };
+        }
+      }
+      
+      return {
+        ...state,
+        mode: 'lyrics',
+        session: null,
+        currentVerb: null,
+        feedback: null,
+        currentPerson: undefined,
+        currentPolarity: undefined,
+        currentSentence: undefined,
+        currentGradationQuestion: undefined,
+        gradationSession: undefined,
+        vocabularySession: undefined,
+        currentVocabularyWord: undefined,
+        casesSession: undefined,
+        currentCaseSentence: undefined,
+        verbTypeSession: undefined,
+        partitiveSession: undefined,
+        currentPartitiveWord: undefined,
+        lyricsSession,
+        currentLyricsItem,
+      };
+    }
+
     case 'SUBMIT_ANSWER': {
       // Handle verb type arena modes
       if (state.mode === 'verb-type-present' || state.mode === 'verb-type-imperfect') {
@@ -1590,6 +1742,104 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
       
+      // Handle lyrics mode
+      if (state.mode === 'lyrics') {
+        if (!state.lyricsSession || !state.currentLyricsItem) return state;
+        
+        const lyricsSession = state.lyricsSession;
+        const subMode = lyricsSession.subMode;
+        let isCorrect = false;
+        let expectedAnswer = '';
+        const normalizedAnswer = action.answer.trim().toLowerCase();
+        
+        if (subMode === 'word-match') {
+          // User selects from multiple choice
+          expectedAnswer = state.currentLyricsItem.english || '';
+          isCorrect = normalizedAnswer === expectedAnswer.toLowerCase();
+        } else if (subMode === 'word-recall') {
+          // User types Finnish word from English
+          expectedAnswer = state.currentLyricsItem.finnish || '';
+          isCorrect = normalizedAnswer === expectedAnswer.toLowerCase();
+        } else if (subMode === 'line-translate') {
+          // User selects correct English translation
+          expectedAnswer = state.currentLyricsItem.englishLine || '';
+          isCorrect = normalizedAnswer === expectedAnswer.toLowerCase();
+        } else if (subMode === 'fill-blank') {
+          // User fills in missing word
+          expectedAnswer = state.currentLyricsItem.missingWord || '';
+          isCorrect = normalizedAnswer === expectedAnswer.toLowerCase();
+        } else if (subMode === 'word-order') {
+          // User arranges words - answer is comma-separated words
+          expectedAnswer = state.currentLyricsItem.finnishLine || '';
+          const userWords = action.answer.split(',').map(w => w.trim()).join(' ');
+          isCorrect = userWords.toLowerCase() === expectedAnswer.toLowerCase();
+        }
+        
+        // Update word or line state based on mode
+        let newWords = [...lyricsSession.words];
+        let newLines = [...lyricsSession.lines];
+        let shouldEliminate = false;
+        
+        if (subMode === 'word-match' || subMode === 'word-recall') {
+          const currentWordState = lyricsSession.words[lyricsSession.currentWordIndex];
+          const newConsecutive = isCorrect ? currentWordState.consecutiveCorrect + 1 : 0;
+          shouldEliminate = isCorrect && newConsecutive >= 2; // Need 2 correct to eliminate
+          
+          newWords[lyricsSession.currentWordIndex] = {
+            ...currentWordState,
+            correctCount: isCorrect ? currentWordState.correctCount + 1 : currentWordState.correctCount,
+            wrongCount: isCorrect ? currentWordState.wrongCount : currentWordState.wrongCount + 1,
+            eliminated: shouldEliminate,
+            consecutiveCorrect: newConsecutive,
+          };
+        } else {
+          // Line-based modes
+          const currentLineState = lyricsSession.lines[lyricsSession.currentLineIndex];
+          shouldEliminate = isCorrect;
+          
+          newLines[lyricsSession.currentLineIndex] = {
+            ...currentLineState,
+            correctCount: isCorrect ? currentLineState.correctCount + 1 : currentLineState.correctCount,
+            wrongCount: isCorrect ? currentLineState.wrongCount : currentLineState.wrongCount + 1,
+            eliminated: shouldEliminate,
+          };
+        }
+        
+        const newWrongCount = lyricsSession.wrongCount + (isCorrect ? 0 : 1);
+        const activeWordCount = newWords.filter(w => !w.eliminated).length;
+        
+        // For line-based modes, check if we've reached the last line and answered correctly
+        const isWordMode = subMode === 'word-match' || subMode === 'word-recall';
+        const isLastLine = lyricsSession.currentLineIndex === lyricsSession.lines.length - 1;
+        
+        const isComplete = isWordMode 
+          ? activeWordCount === 0 
+          : (isLastLine && isCorrect); // Complete when last line is answered correctly
+        
+        const newLyricsSession: LyricsSessionState = {
+          ...lyricsSession,
+          words: newWords,
+          lines: newLines,
+          wrongCount: newWrongCount,
+          isComplete,
+          endTime: isComplete ? Date.now() : null,
+        };
+        
+        const feedback: FeedbackData = {
+          isCorrect,
+          userAnswer: action.answer,
+          correctAnswer: expectedAnswer,
+          exampleSentence: state.currentLyricsItem.finnishLine,
+          exampleTranslation: state.currentLyricsItem.englishLine,
+        };
+        
+        return {
+          ...state,
+          lyricsSession: newLyricsSession,
+          feedback,
+        };
+      }
+      
       // Regular verb modes
       if (!state.session || !state.currentVerb) return state;
 
@@ -2008,6 +2258,115 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
       
+      // Handle lyrics mode
+      if (state.mode === 'lyrics') {
+        if (!state.lyricsSession) return state;
+        
+        const session = state.lyricsSession;
+        const subMode = session.subMode;
+        const isWordMode = subMode === 'word-match' || subMode === 'word-recall';
+        
+        if (isWordMode) {
+          const activeWords = session.words.filter(w => !w.eliminated);
+          
+          if (activeWords.length === 0 || session.isComplete) {
+            return { ...state, feedback: null };
+          }
+          
+          // Find next active word
+          let nextIndex = session.currentWordIndex + 1;
+          while (nextIndex < session.words.length && session.words[nextIndex].eliminated) {
+            nextIndex++;
+          }
+          if (nextIndex >= session.words.length) {
+            nextIndex = 0;
+            while (nextIndex < session.words.length && session.words[nextIndex].eliminated) {
+              nextIndex++;
+            }
+          }
+          
+          const nextWord = session.words[nextIndex];
+          
+          // Generate new options for word-match
+          let options: string[] | undefined;
+          if (subMode === 'word-match') {
+            const otherWords = session.words.filter(w => w.finnish !== nextWord.finnish && !w.eliminated);
+            const wrongOptions = otherWords
+              .sort(() => Math.random() - 0.5)
+              .slice(0, 3)
+              .map(w => w.english);
+            options = [nextWord.english, ...wrongOptions].sort(() => Math.random() - 0.5);
+          }
+          
+          return {
+            ...state,
+            lyricsSession: { ...session, currentWordIndex: nextIndex },
+            currentLyricsItem: {
+              finnish: nextWord.finnish,
+              english: nextWord.english,
+              grammarNote: nextWord.grammarNote,
+              baseForm: nextWord.baseForm,
+              options,
+            },
+            feedback: null,
+          };
+        } else {
+          // Line-based modes - follow song sequence
+          if (session.isComplete) {
+            return { ...state, feedback: null };
+          }
+          
+          // Simply go to the next line in sequence
+          const nextIndex = session.currentLineIndex + 1;
+          
+          // Check if we've reached the end of the song
+          if (nextIndex >= session.lines.length) {
+            return { ...state, feedback: null };
+          }
+          
+          const nextLine = session.lines[nextIndex];
+          let currentLyricsItem: CurrentLyricsItem = {
+            finnishLine: nextLine.finnish,
+            englishLine: nextLine.english,
+          };
+          
+          if (subMode === 'line-translate') {
+            // Get wrong options from other lines in the song
+            const otherLines = session.lines.filter(l => l.finnish !== nextLine.finnish);
+            const wrongOptions = otherLines
+              .sort(() => Math.random() - 0.5)
+              .slice(0, 3)
+              .map(l => l.english);
+            currentLyricsItem.options = [nextLine.english, ...wrongOptions].sort(() => Math.random() - 0.5);
+          } else if (subMode === 'fill-blank') {
+            // Need to get original words - for now just use simple word split
+            const wordsInLine = nextLine.finnish.split(/\s+/);
+            if (wordsInLine.length > 0) {
+              const blankIdx = Math.floor(Math.random() * wordsInLine.length);
+              const blankWord = wordsInLine[blankIdx];
+              const sentenceWithBlank = nextLine.finnish.replace(
+                new RegExp(`\\b${blankWord}\\b`, 'i'),
+                '_____'
+              );
+              currentLyricsItem.sentenceWithBlank = sentenceWithBlank;
+              currentLyricsItem.missingWord = blankWord;
+            }
+          } else if (subMode === 'word-order') {
+            const wordsInOrder = nextLine.finnish.split(/\s+/);
+            const shuffled = [...wordsInOrder].sort(() => Math.random() - 0.5);
+            currentLyricsItem.correctOrder = wordsInOrder;
+            currentLyricsItem.shuffledWords = shuffled;
+          }
+          
+          return {
+            ...state,
+            lyricsSession: { ...session, currentLineIndex: nextIndex },
+            currentLyricsItem,
+            feedback: null,
+          };
+        }
+      }
+      
       // Regular verb modes
       if (!state.session) return state;
 
@@ -2077,6 +2436,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         casesSession: undefined,
         currentCaseSentence: undefined,
         verbTypeSession: undefined,
+        partitiveSession: undefined,
+        currentPartitiveWord: undefined,
+        lyricsSession: undefined,
+        currentLyricsItem: undefined,
       };
     }
 
@@ -2240,6 +2603,26 @@ export function useGameState() {
   const getPartitiveWordCount = useCallback((rules: PartitiveRule[]) => {
     return getWordsForRules(rules).length;
   }, []);
+  
+  // Lyrics Learning related
+  const [selectedSongId, setSelectedSongId] = useState<string>(SONGS[0]?.id || '');
+  const [selectedLyricsMode, setSelectedLyricsMode] = useState<LyricsSubMode>('word-match');
+  
+  const startLyricsSession = useCallback((songId: string, subMode: LyricsSubMode) => {
+    dispatch({ type: 'START_LYRICS_SESSION', songId, subMode });
+  }, []);
+  
+  const getSongInfo = useCallback((songId: string) => {
+    const song = getSongById(songId);
+    if (!song) return null;
+    return {
+      title: song.title,
+      artist: song.artist,
+      wordCount: getSongWords(song).length,
+      lineCount: getUniqueSongLines(song).length,
+      difficulty: song.difficulty,
+    };
+  }, []);
 
   return {
     state,
@@ -2283,5 +2666,13 @@ export function useGameState() {
     startPartitiveSession,
     getPartitiveWordCount,
     partitiveRules: PARTITIVE_RULES,
+    // Lyrics Learning exports
+    selectedSongId,
+    setSelectedSongId,
+    selectedLyricsMode,
+    setSelectedLyricsMode,
+    startLyricsSession,
+    getSongInfo,
+    allSongs: SONGS,
   };
 }

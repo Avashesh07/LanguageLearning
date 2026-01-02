@@ -26,12 +26,13 @@ export function GameScreen({
   const [answer, setAnswer] = useState('');
   const [elapsedTime, setElapsedTime] = useState(0);
   const [showTranslation, setShowTranslation] = useState(false);
+  const [selectedWords, setSelectedWords] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { session, currentVerb, feedback, mode, currentPerson, currentPolarity, currentSentence, currentGradationQuestion, gradationSession, vocabularySession, currentVocabularyWord, casesSession, currentCaseSentence, verbTypeSession, partitiveSession, currentPartitiveWord } = state;
+  const { session, currentVerb, feedback, mode, currentPerson, currentPolarity, currentSentence, currentGradationQuestion, gradationSession, vocabularySession, currentVocabularyWord, casesSession, currentCaseSentence, verbTypeSession, partitiveSession, currentPartitiveWord, lyricsSession, currentLyricsItem } = state;
 
   useEffect(() => {
-    const startTime = session?.startTime || gradationSession?.startTime || vocabularySession?.startTime || casesSession?.startTime || verbTypeSession?.startTime || partitiveSession?.startTime;
-    const isComplete = session?.isComplete || gradationSession?.isComplete || vocabularySession?.isComplete || casesSession?.isComplete || verbTypeSession?.isComplete || partitiveSession?.isComplete;
+    const startTime = session?.startTime || gradationSession?.startTime || vocabularySession?.startTime || casesSession?.startTime || verbTypeSession?.startTime || partitiveSession?.startTime || lyricsSession?.startTime;
+    const isComplete = session?.isComplete || gradationSession?.isComplete || vocabularySession?.isComplete || casesSession?.isComplete || verbTypeSession?.isComplete || partitiveSession?.isComplete || lyricsSession?.isComplete;
     
     if (!startTime || isComplete) return;
 
@@ -40,13 +41,13 @@ export function GameScreen({
     }, 100);
 
     return () => clearInterval(interval);
-  }, [session?.startTime, session?.isComplete, gradationSession?.startTime, gradationSession?.isComplete, vocabularySession?.startTime, vocabularySession?.isComplete, casesSession?.startTime, casesSession?.isComplete, verbTypeSession?.startTime, verbTypeSession?.isComplete, partitiveSession?.startTime, partitiveSession?.isComplete]);
+  }, [session?.startTime, session?.isComplete, gradationSession?.startTime, gradationSession?.isComplete, vocabularySession?.startTime, vocabularySession?.isComplete, casesSession?.startTime, casesSession?.isComplete, verbTypeSession?.startTime, verbTypeSession?.isComplete, partitiveSession?.startTime, partitiveSession?.isComplete, lyricsSession?.startTime, lyricsSession?.isComplete]);
 
   useEffect(() => {
     if (!feedback && inputRef.current) {
       inputRef.current.focus();
     }
-  }, [feedback, currentVerb, currentVocabularyWord, currentCaseSentence]);
+  }, [feedback, currentVerb, currentVocabularyWord, currentCaseSentence, currentLyricsItem]);
 
   useEffect(() => {
     if (feedback && feedback.isCorrect) {
@@ -54,6 +55,7 @@ export function GameScreen({
       const timeout = setTimeout(() => {
         onClearFeedback();
         setAnswer('');
+        setSelectedWords([]);
         onNextVerb();
       }, 400);
       return () => clearTimeout(timeout);
@@ -76,6 +78,7 @@ export function GameScreen({
       onClearFeedback();
       setAnswer('');
       setShowTranslation(false);
+      setSelectedWords([]);
       onNextVerb();
     }
   }, [feedback, onClearFeedback, onNextVerb]);
@@ -742,6 +745,291 @@ export function GameScreen({
                   <div className="feedback-rule-info">
                     <span className="rule-name">{feedback.verbTypeInfo}</span>
                     {feedback.rule && <span className="rule-text">{feedback.rule}</span>}
+                  </div>
+                )}
+              </>
+            )}
+            
+            <button className="continue-btn" onClick={handleContinue}>
+              {feedback.isCorrect ? 'Continue' : 'Try Again'}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Handle lyrics learning mode
+  if (mode === 'lyrics') {
+    if (!lyricsSession || !currentLyricsItem) return null;
+    
+    const subMode = lyricsSession.subMode;
+    const isWordMode = subMode === 'word-match' || subMode === 'word-recall';
+    
+    const activeCount = isWordMode 
+      ? lyricsSession.words.filter(w => !w.eliminated).length 
+      : lyricsSession.lines.filter(l => !l.eliminated).length;
+    const totalCount = isWordMode ? lyricsSession.words.length : lyricsSession.lines.length;
+    const eliminatedCount = totalCount - activeCount;
+    
+    const getModeTitle = () => {
+      switch (subMode) {
+        case 'word-match': return '🎯 Word Match';
+        case 'word-recall': return '✍️ Word Recall';
+        case 'line-translate': return '📖 Line Translation';
+        case 'fill-blank': return '🔤 Fill in the Blank';
+        case 'word-order': return '🔀 Word Order';
+        default: return 'Lyrics Learning';
+      }
+    };
+    
+    const handleWordOrderSelect = (word: string) => {
+      const newSelected = [...selectedWords, word];
+      setSelectedWords(newSelected);
+      
+      // Check if all words are selected
+      if (currentLyricsItem.shuffledWords && newSelected.length === currentLyricsItem.shuffledWords.length) {
+        onSubmit(newSelected.join(','));
+        setSelectedWords([]);
+      }
+    };
+    
+    const handleWordOrderReset = () => {
+      setSelectedWords([]);
+    };
+    
+    const handleOptionClick = (option: string) => {
+      onSubmit(option);
+    };
+    
+    // For line-based modes, show line number (sequential); for word modes, show eliminated/total
+    const currentLineNum = lyricsSession.currentLineIndex + 1;
+    
+    return (
+      <div className="game-screen lyrics-mode">
+        <div className="game-header">
+          <button className="quit-btn" onClick={onQuit}>
+            <CloseIcon size={14} /> Quit
+          </button>
+          <div className="timer">{formatTime(elapsedTime)}</div>
+          <div className="progress-stats">
+            {isWordMode ? (
+              <>
+                <span className="eliminated">{eliminatedCount}</span>
+                <span className="separator">/</span>
+                <span className="total">{totalCount}</span>
+              </>
+            ) : (
+              <>
+                <span className="current-line">Line {currentLineNum}</span>
+                <span className="separator">of</span>
+                <span className="total">{totalCount}</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="game-stats-bar lyrics-stats">
+          <div className="stat-item">
+            <span className="stat-label">Song</span>
+            <span className="stat-value">{lyricsSession.songTitle}</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-label">Mode</span>
+            <span className="stat-value">{getModeTitle()}</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-label">Mistakes</span>
+            <span className="stat-value mistakes">{lyricsSession.wrongCount}</span>
+          </div>
+        </div>
+
+        <div className="prompt-area">
+          <div className="lyrics-prompt-box">
+            {/* Word Match Mode */}
+            {subMode === 'word-match' && currentLyricsItem.finnish && (
+              <>
+                <div className="lyrics-word-prompt">
+                  <span className="lyrics-finnish-word">{currentLyricsItem.finnish}</span>
+                  {currentLyricsItem.grammarNote && (
+                    <span className="lyrics-grammar-note">({currentLyricsItem.grammarNote})</span>
+                  )}
+                </div>
+                <div className="lyrics-question">What does this word mean?</div>
+                <div className="lyrics-options">
+                  {currentLyricsItem.options?.map((option, idx) => (
+                    <button
+                      key={idx}
+                      className="lyrics-option-btn"
+                      onClick={() => handleOptionClick(option)}
+                      disabled={!!feedback}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+            
+            {/* Word Recall Mode */}
+            {subMode === 'word-recall' && currentLyricsItem.english && (
+              <>
+                <div className="lyrics-word-prompt">
+                  <span className="lyrics-english-word">{currentLyricsItem.english}</span>
+                </div>
+                <div className="lyrics-question">Write the Finnish word:</div>
+                {currentLyricsItem.baseForm && (
+                  <div className="lyrics-hint">
+                    Base form: {currentLyricsItem.baseForm}
+                  </div>
+                )}
+              </>
+            )}
+            
+            {/* Line Translation Mode */}
+            {subMode === 'line-translate' && currentLyricsItem.finnishLine && (
+              <>
+                <div className="lyrics-line-prompt">
+                  <span className="lyrics-finnish-line">{currentLyricsItem.finnishLine}</span>
+                </div>
+                <div className="lyrics-question">Select the correct translation:</div>
+                <div className="lyrics-options line-options">
+                  {currentLyricsItem.options?.map((option, idx) => (
+                    <button
+                      key={idx}
+                      className="lyrics-option-btn line-option"
+                      onClick={() => handleOptionClick(option)}
+                      disabled={!!feedback}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+            
+            {/* Fill in the Blank Mode */}
+            {subMode === 'fill-blank' && currentLyricsItem.sentenceWithBlank && (
+              <>
+                <div className="lyrics-fill-prompt">
+                  <span className="lyrics-sentence-blank">{currentLyricsItem.sentenceWithBlank}</span>
+                </div>
+                <div className="lyrics-translation-hint">
+                  <EyeIcon size={14} /> {currentLyricsItem.englishLine}
+                </div>
+                <div className="lyrics-question">Fill in the missing word:</div>
+              </>
+            )}
+            
+            {/* Word Order Mode */}
+            {subMode === 'word-order' && currentLyricsItem.shuffledWords && (
+              <>
+                <div className="lyrics-order-prompt">
+                  <div className="lyrics-translation-hint">
+                    <GlobeIcon size={14} /> {currentLyricsItem.englishLine}
+                  </div>
+                  <div className="lyrics-question">Arrange the words in correct order:</div>
+                  
+                  {/* Selected words display */}
+                  <div className="lyrics-selected-words">
+                    {selectedWords.length > 0 ? (
+                      selectedWords.map((word, idx) => (
+                        <span key={idx} className="selected-word">{word}</span>
+                      ))
+                    ) : (
+                      <span className="selected-placeholder">Click words below...</span>
+                    )}
+                  </div>
+                  
+                  {/* Available words */}
+                  <div className="lyrics-word-options">
+                    {currentLyricsItem.shuffledWords.map((word, idx) => {
+                      const isUsed = selectedWords.filter(w => w === word).length >= 
+                        currentLyricsItem.shuffledWords!.filter(w => w === word).length - 
+                        (currentLyricsItem.shuffledWords!.filter(w => w === word).length - 
+                          selectedWords.filter(w => w === word).length);
+                      const usedCount = selectedWords.filter(w => w === word).length;
+                      const availableCount = currentLyricsItem.shuffledWords!.slice(0, idx + 1).filter(w => w === word).length;
+                      const shouldHide = usedCount >= availableCount;
+                      
+                      return (
+                        <button
+                          key={idx}
+                          className={`lyrics-word-btn ${shouldHide ? 'used' : ''}`}
+                          onClick={() => handleWordOrderSelect(word)}
+                          disabled={!!feedback || shouldHide}
+                        >
+                          {word}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  
+                  {selectedWords.length > 0 && (
+                    <button 
+                      className="lyrics-reset-btn"
+                      onClick={handleWordOrderReset}
+                      disabled={!!feedback}
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Input area for text-based modes */}
+        {(subMode === 'word-recall' || subMode === 'fill-blank') && (
+          <div className="input-area">
+            <form onSubmit={handleSubmit} className="input-wrapper">
+              <input
+                ref={inputRef}
+                type="text"
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                placeholder={subMode === 'word-recall' ? 'Type the Finnish word...' : 'Type the missing word...'}
+                disabled={!!feedback}
+                autoComplete="off"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+              />
+              <button
+                type="submit"
+                className="submit-btn"
+                disabled={!answer.trim() || !!feedback}
+              >
+                Enter
+              </button>
+            </form>
+          </div>
+        )}
+
+        {feedback && (
+          <div className={`feedback ${feedback.isCorrect ? 'correct' : 'incorrect'} ${!feedback.isCorrect ? 'detailed' : ''}`}>
+            <div className="feedback-title">
+              {feedback.isCorrect ? 'CORRECT!' : 'WRONG'}
+            </div>
+            
+            {!feedback.isCorrect && (
+              <>
+                <div className="feedback-answers">
+                  <div className="your-answer">
+                    <span className="label">Your answer:</span>
+                    <span className="answer wrong">{feedback.userAnswer}</span>
+                  </div>
+                  <div className="correct-answer">
+                    <span className="label">Correct:</span>
+                    <span className="answer">{feedback.correctAnswer}</span>
+                  </div>
+                </div>
+                
+                {feedback.exampleSentence && (
+                  <div className="feedback-context">
+                    <span className="context-line">{feedback.exampleSentence}</span>
+                    <span className="context-translation">{feedback.exampleTranslation}</span>
                   </div>
                 )}
               </>
