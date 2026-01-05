@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { GameState } from '../types';
-import { getAllRules } from '../data/consonantGradation';
 import { getTavoiteById } from '../data/tavoiteVocabulary';
 import { CASES, CASE_GROUPS } from '../data/finnishCases';
 import { PARTITIVE_RULES } from '../data/partitiveData';
+import { PLURAL_RULES } from '../data/pluralData';
+import { GENITIVE_RULES } from '../data/genitiveData';
+import { STEM_RULES } from '../data/stemData';
 import { CloseIcon, CheckIcon, MapPinIcon, GlobeIcon, EyeIcon } from './Icons';
 
 interface GameScreenProps {
@@ -28,11 +30,11 @@ export function GameScreen({
   const [showTranslation, setShowTranslation] = useState(false);
   const [selectedWords, setSelectedWords] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { session, currentVerb, feedback, mode, currentPerson, currentPolarity, currentSentence, currentGradationQuestion, gradationSession, vocabularySession, currentVocabularyWord, casesSession, currentCaseSentence, verbTypeSession, partitiveSession, currentPartitiveWord, lyricsSession, currentLyricsItem } = state;
+  const { feedback, mode, vocabularySession, currentVocabularyWord, casesSession, currentCaseSentence, verbTypeSession, partitiveSession, currentPartitiveWord, pluralSession, currentPluralWord, genitiveSession, currentGenitiveWord, stemSession, currentStemWord, lyricsSession, currentLyricsItem } = state;
 
   useEffect(() => {
-    const startTime = session?.startTime || gradationSession?.startTime || vocabularySession?.startTime || casesSession?.startTime || verbTypeSession?.startTime || partitiveSession?.startTime || lyricsSession?.startTime;
-    const isComplete = session?.isComplete || gradationSession?.isComplete || vocabularySession?.isComplete || casesSession?.isComplete || verbTypeSession?.isComplete || partitiveSession?.isComplete || lyricsSession?.isComplete;
+    const startTime = vocabularySession?.startTime || casesSession?.startTime || verbTypeSession?.startTime || partitiveSession?.startTime || pluralSession?.startTime || genitiveSession?.startTime || stemSession?.startTime || lyricsSession?.startTime;
+    const isComplete = vocabularySession?.isComplete || casesSession?.isComplete || verbTypeSession?.isComplete || partitiveSession?.isComplete || pluralSession?.isComplete || genitiveSession?.isComplete || stemSession?.isComplete || lyricsSession?.isComplete;
     
     if (!startTime || isComplete) return;
 
@@ -41,13 +43,13 @@ export function GameScreen({
     }, 100);
 
     return () => clearInterval(interval);
-  }, [session?.startTime, session?.isComplete, gradationSession?.startTime, gradationSession?.isComplete, vocabularySession?.startTime, vocabularySession?.isComplete, casesSession?.startTime, casesSession?.isComplete, verbTypeSession?.startTime, verbTypeSession?.isComplete, partitiveSession?.startTime, partitiveSession?.isComplete, lyricsSession?.startTime, lyricsSession?.isComplete]);
+  }, [vocabularySession?.startTime, vocabularySession?.isComplete, casesSession?.startTime, casesSession?.isComplete, verbTypeSession?.startTime, verbTypeSession?.isComplete, partitiveSession?.startTime, partitiveSession?.isComplete, pluralSession?.startTime, pluralSession?.isComplete, genitiveSession?.startTime, genitiveSession?.isComplete, stemSession?.startTime, stemSession?.isComplete, lyricsSession?.startTime, lyricsSession?.isComplete]);
 
   useEffect(() => {
     if (!feedback && inputRef.current) {
       inputRef.current.focus();
     }
-  }, [feedback, currentVerb, currentVocabularyWord, currentCaseSentence, currentLyricsItem]);
+  }, [feedback, currentVocabularyWord, currentCaseSentence, currentLyricsItem]);
 
   useEffect(() => {
     if (feedback && feedback.isCorrect) {
@@ -82,198 +84,6 @@ export function GameScreen({
       onNextVerb();
     }
   }, [feedback, onClearFeedback, onNextVerb]);
-
-  // Handle consonant gradation mode separately
-  const isGradationMode = mode === 'consonant-gradation';
-  
-  if (isGradationMode) {
-    if (!gradationSession) return null;
-    
-    const allRules = getAllRules();
-    const currentRule = allRules[gradationSession.currentRuleIndex];
-    const stage = gradationSession.currentStage;
-    const ruleProgress = gradationSession.currentRuleIndex + 1;
-    const totalRules = allRules.length;
-    
-    return (
-      <div className="game-screen">
-        <div className="game-header">
-          <button className="quit-btn" onClick={onQuit}>
-            <CloseIcon size={14} /> Quit
-          </button>
-          <div className="timer">{formatTime(elapsedTime)}</div>
-          <div className="progress-stats">
-            <span className="eliminated">Rule {ruleProgress}</span>
-            <span className="separator">/</span>
-            <span className="total">{totalRules}</span>
-          </div>
-        </div>
-
-        <div className="game-stats-bar">
-          <div className="stat-item">
-            <span className="stat-label">Stage</span>
-            <span className="stat-value">
-              {stage === 'rule-confirm' ? 'Learn Rule' : 
-               stage === 'noun-practice' ? 'Noun Practice' : 
-               stage === 'verb-guide' ? 'Verb Guide' : 
-               'Verb Practice'}
-            </span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-label">Mistakes</span>
-            <span className="stat-value mistakes">{gradationSession.wrongCount}</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-label">Rule</span>
-            <span className="stat-value">{currentRule?.rule}</span>
-          </div>
-        </div>
-
-        <div className="prompt-area">
-          {stage === 'rule-confirm' && currentRule ? (
-            <div className="gradation-prompt-box">
-              <div className="gradation-rule-display">
-                <div className="rule-title">Learn This Rule:</div>
-                <div className="rule-formula">{currentRule.rule}</div>
-                <div className="rule-description">{currentRule.description}</div>
-                <div className="rule-examples-preview">
-                  <div className="example-preview">
-                    <strong>Noun example:</strong> {currentRule.examples.noun[0]?.context}
-                  </div>
-                  <div className="example-preview">
-                    <strong>Verb example:</strong> {currentRule.examples.verb[0]?.context}
-                  </div>
-                </div>
-                <button
-                  className="rule-confirm-btn"
-                  onClick={() => onSubmit('continue')}
-                >
-                  I Understand - Start Noun Practice
-                </button>
-              </div>
-            </div>
-          ) : stage === 'verb-guide' && currentRule ? (
-            <div className="gradation-prompt-box">
-              <div className="gradation-rule-display">
-                <div className="rule-title">Verb Conjugation Guide</div>
-                <div className="rule-formula">{currentRule.rule}</div>
-                <div className="rule-description">{currentRule.verbGuide || currentRule.description}</div>
-                <div className="rule-examples-preview">
-                  <div className="example-preview">
-                    <strong>Example:</strong> {currentRule.examples.verb[0]?.context}
-                  </div>
-                  {currentRule.examples.verb.length > 1 && (
-                    <div className="example-preview">
-                      <strong>Another:</strong> {currentRule.examples.verb[1]?.context}
-                    </div>
-                  )}
-                </div>
-                <button
-                  className="rule-confirm-btn"
-                  onClick={() => onSubmit('continue')}
-                >
-                  I Understand - Start Verb Practice
-                </button>
-              </div>
-            </div>
-          ) : currentGradationQuestion ? (
-            <div className="gradation-prompt-box">
-              <div className="gradation-stage-header">
-                <span className="stage-badge">{stage === 'noun-practice' ? 'NOUN' : 'VERB'}</span>
-                <span className="rule-display">{currentRule?.rule}</span>
-              </div>
-              
-              <div className="base-word-display">
-                <span className="base-word-label">Word:</span>
-                <span className="base-word">{currentGradationQuestion.strongForm}</span>
-              </div>
-              
-              {currentGradationQuestion.caseInfo && (
-                <div className="case-info-hint">
-                  {currentGradationQuestion.caseInfo}
-                </div>
-              )}
-              
-              <div className="gradation-fill-question">
-                <div className="fill-blank-display">
-                  {currentGradationQuestion.blankForm?.replace(/_{10,}/g, '<BLANK>').split('<BLANK>').map((part, i, arr) => (
-                    <span key={i}>
-                      <span className="fill-text">{part}</span>
-                      {i < arr.length - 1 && <span className="fill-blank">___________</span>}
-                    </span>
-                  ))}
-                </div>
-                <form onSubmit={handleSubmit} className="input-wrapper">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={answer}
-                    onChange={(e) => setAnswer(e.target.value)}
-                    placeholder="Write the full word..."
-                    disabled={!!feedback}
-                    autoComplete="off"
-                    autoCapitalize="off"
-                    autoCorrect="off"
-                    spellCheck={false}
-                  />
-                  <button
-                    type="submit"
-                    className="submit-btn"
-                    disabled={!answer.trim() || !!feedback}
-                  >
-                    Enter
-                  </button>
-                </form>
-              </div>
-            </div>
-          ) : null}
-        </div>
-
-        {feedback && (
-          <div className={`feedback ${feedback.isCorrect ? 'correct' : 'incorrect'} ${!feedback.isCorrect ? 'detailed' : ''}`}>
-            <div className="feedback-title">
-              {feedback.isCorrect ? 'CORRECT!' : 'WRONG'}
-            </div>
-            
-            {!feedback.isCorrect && (
-              <div className="feedback-learning">
-                <div className="feedback-your-answer">
-                  You answered: <span>{feedback.userAnswer}</span>
-                </div>
-                <div className="feedback-correct-answer">
-                  Correct: <span>{feedback.correctAnswer}</span>
-                </div>
-                {feedback.exampleSentence && feedback.exampleTranslation && (
-                  <div className="feedback-section" style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                    <div className="feedback-section-title" style={{ fontSize: '0.9rem', marginBottom: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>📝 Example in context:</div>
-                    <div className="feedback-section-content" style={{ fontSize: '1rem', marginBottom: '0.5rem', fontStyle: 'italic', color: 'var(--text-primary)' }}>
-                      {feedback.exampleSentence}
-                    </div>
-                    <div className="feedback-section-content" style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                      {feedback.exampleTranslation}
-                    </div>
-                  </div>
-                )}
-                {feedback.rule && (
-                  <div className="feedback-section">
-                    <div className="feedback-section-title">Rule</div>
-                    <div className="feedback-section-content">{feedback.rule}</div>
-                  </div>
-                )}
-                <button className="feedback-continue-btn" onClick={handleContinue}>
-                  Continue
-                </button>
-              </div>
-            )}
-            
-            {feedback.isCorrect && (
-              <div className="eliminated-notice"><CheckIcon size={14} color="#f0c674" /> Next question!</div>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  }
 
   // Handle vocabulary modes (including memorise)
   const isVocabularyMode = mode === 'vocabulary-recall' || mode === 'vocabulary-active-recall' || mode === 'vocabulary-memorise';
@@ -449,8 +259,8 @@ export function GameScreen({
     );
   }
 
-  // Handle cases mode (Fill in the Blank)
-  const isCasesMode = mode === 'cases-fill-blank';
+  // Handle cases mode (Fill in the Blank - singular and plural)
+  const isCasesMode = mode === 'cases-fill-blank' || mode === 'cases-fill-blank-plural';
   
   if (isCasesMode) {
     if (!casesSession || !currentCaseSentence) return null;
@@ -505,6 +315,12 @@ export function GameScreen({
               {caseInfo?.name || currentCaseSentence.caseUsed}
             </span>
           </div>
+          {mode === 'cases-fill-blank-plural' && (
+            <div className="stat-item plural-indicator">
+              <span className="stat-label">Form</span>
+              <span className="stat-value plural">Monikko</span>
+            </div>
+          )}
         </div>
 
         <div className="prompt-area">
@@ -642,16 +458,21 @@ export function GameScreen({
     );
   }
 
-  // Handle partitive mode
-  if (mode === 'partitive') {
+  // Handle partitive mode (singular and plural)
+  if (mode === 'partitive' || mode === 'partitive-plural') {
     if (!partitiveSession || !currentPartitiveWord) return null;
     
     const activeCount = partitiveSession.words.filter(w => !w.eliminated).length;
     const eliminatedCount = partitiveSession.words.length - activeCount;
     const currentWordState = partitiveSession.words[partitiveSession.currentWordIndex];
     const hasWrongAnswer = currentWordState.wrongCount > 0;
+    const isPlural = mode === 'partitive-plural';
     
     const ruleInfo = PARTITIVE_RULES.find(r => r.id === currentPartitiveWord.rule);
+    
+    // Display word based on mode
+    const displayWord = isPlural ? currentPartitiveWord.nominativePlural : currentPartitiveWord.nominative;
+    const questionLabel = isPlural ? 'Partitiivi monikko?' : 'Partitiivi?';
     
     return (
       <div className="game-screen partitive-mode">
@@ -669,8 +490,8 @@ export function GameScreen({
 
         <div className="game-stats-bar partitive-stats">
           <div className="stat-item">
-            <span className="stat-label">Rule</span>
-            <span className="stat-value">{ruleInfo?.name || currentPartitiveWord.rule}</span>
+            <span className="stat-label">{isPlural ? 'Mode' : 'Rule'}</span>
+            <span className="stat-value">{isPlural ? 'Plural' : (ruleInfo?.name || currentPartitiveWord.rule)}</span>
           </div>
           <div className="stat-item">
             <span className="stat-label">Mistakes</span>
@@ -681,12 +502,12 @@ export function GameScreen({
         <div className="prompt-area">
           <div className="partitive-prompt-box">
             <div className="partitive-word-header">
-              <span className="partitive-nominative">{currentPartitiveWord.nominative}</span>
+              <span className="partitive-nominative">{displayWord}</span>
               <span className="partitive-translation">({currentPartitiveWord.translation})</span>
             </div>
             
             <div className="partitive-question">
-              <span className="partitive-label">Partitiivi?</span>
+              <span className="partitive-label">{questionLabel}</span>
             </div>
             
             {hasWrongAnswer && currentPartitiveWord.hint && (
@@ -705,7 +526,7 @@ export function GameScreen({
               type="text"
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
-              placeholder="Write the partitive form..."
+              placeholder={isPlural ? "Write the plural partitive form..." : "Write the partitive form..."}
               disabled={!!feedback}
               autoComplete="off"
               autoCapitalize="off"
@@ -730,6 +551,379 @@ export function GameScreen({
             
             {!feedback.isCorrect && (
               <>
+                <div className="feedback-answers">
+                  <div className="your-answer">
+                    <span className="label">Your answer:</span>
+                    <span className="answer wrong">{feedback.userAnswer}</span>
+                  </div>
+                  <div className="correct-answer">
+                    <span className="label">Correct:</span>
+                    <span className="answer">{feedback.correctAnswer}</span>
+                  </div>
+                </div>
+                
+                {feedback.verbTypeInfo && (
+                  <div className="feedback-rule-info">
+                    <span className="rule-name">{feedback.verbTypeInfo}</span>
+                    {feedback.rule && <span className="rule-text">{feedback.rule}</span>}
+                  </div>
+                )}
+              </>
+            )}
+            
+            <button className="continue-btn" onClick={handleContinue}>
+              {feedback.isCorrect ? 'Continue' : 'Try Again'}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Handle plural mode
+  if (mode === 'plural') {
+    if (!pluralSession || !currentPluralWord) return null;
+    
+    const activeCount = pluralSession.words.filter(w => !w.eliminated).length;
+    const eliminatedCount = pluralSession.words.length - activeCount;
+    const currentWordState = pluralSession.words[pluralSession.currentWordIndex];
+    const hasWrongAnswer = currentWordState.wrongCount > 0;
+    
+    const ruleInfo = PLURAL_RULES.find(r => r.id === currentPluralWord.rule);
+    
+    return (
+      <div className="game-screen plural-mode">
+        <div className="game-header">
+          <button className="quit-btn" onClick={onQuit}>
+            <CloseIcon size={14} /> Quit
+          </button>
+          <div className="timer">{formatTime(elapsedTime)}</div>
+          <div className="progress-stats">
+            <span className="eliminated">{eliminatedCount}</span>
+            <span className="separator">/</span>
+            <span className="total">{pluralSession.words.length}</span>
+          </div>
+        </div>
+
+        <div className="game-stats-bar plural-stats">
+          <div className="stat-item">
+            <span className="stat-label">Rule</span>
+            <span className="stat-value">{ruleInfo?.name || currentPluralWord.rule}</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-label">Mistakes</span>
+            <span className="stat-value mistakes">{pluralSession.wrongCount}</span>
+          </div>
+        </div>
+
+        <div className="prompt-area">
+          <div className="partitive-prompt-box">
+            <div className="partitive-word-header">
+              <span className="partitive-nominative">{currentPluralWord.nominative}</span>
+              <span className="partitive-translation">({currentPluralWord.translation})</span>
+            </div>
+            
+            <div className="partitive-question">
+              <span className="partitive-label">Monikko? (Plural)</span>
+            </div>
+            
+            {hasWrongAnswer && currentPluralWord.hint && (
+              <div className="partitive-hint">
+                <span className="hint-label">Hint:</span>
+                <span className="hint-text">{currentPluralWord.hint}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="input-area">
+          <form onSubmit={handleSubmit} className="input-wrapper">
+            <input
+              ref={inputRef}
+              type="text"
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+              placeholder="Write the plural form..."
+              disabled={!!feedback}
+              autoComplete="off"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            <button
+              type="submit"
+              className="submit-btn"
+              disabled={!answer.trim() || !!feedback}
+            >
+              Enter
+            </button>
+          </form>
+        </div>
+
+        {feedback && (
+          <div className={`feedback ${feedback.isCorrect ? 'correct' : 'incorrect'} ${!feedback.isCorrect ? 'detailed' : ''}`}>
+            <div className="feedback-title">
+              {feedback.isCorrect ? 'CORRECT!' : 'WRONG'}
+            </div>
+            
+            {!feedback.isCorrect && (
+              <>
+                <div className="feedback-answers">
+                  <div className="your-answer">
+                    <span className="label">Your answer:</span>
+                    <span className="answer wrong">{feedback.userAnswer}</span>
+                  </div>
+                  <div className="correct-answer">
+                    <span className="label">Correct:</span>
+                    <span className="answer">{feedback.correctAnswer}</span>
+                  </div>
+                </div>
+                
+                {feedback.verbTypeInfo && (
+                  <div className="feedback-rule-info">
+                    <span className="rule-name">{feedback.verbTypeInfo}</span>
+                    {feedback.rule && <span className="rule-text">{feedback.rule}</span>}
+                  </div>
+                )}
+              </>
+            )}
+            
+            <button className="continue-btn" onClick={handleContinue}>
+              {feedback.isCorrect ? 'Continue' : 'Try Again'}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Handle genitive mode (singular and plural)
+  if (mode === 'genitive' || mode === 'genitive-plural') {
+    if (!genitiveSession || !currentGenitiveWord) return null;
+    
+    const activeCount = genitiveSession.words.filter(w => !w.eliminated).length;
+    const eliminatedCount = genitiveSession.words.length - activeCount;
+    const currentWordState = genitiveSession.words[genitiveSession.currentWordIndex];
+    const hasWrongAnswer = currentWordState.wrongCount > 0;
+    const isPlural = mode === 'genitive-plural';
+    
+    const ruleInfo = GENITIVE_RULES.find(r => r.id === currentGenitiveWord.rule);
+    
+    // Display word based on mode
+    const displayWord = isPlural ? currentGenitiveWord.nominativePlural : currentGenitiveWord.nominative;
+    const questionLabel = isPlural ? 'Genetiivi monikko?' : 'Genetiivi?';
+    
+    return (
+      <div className="game-screen genitive-mode">
+        <div className="game-header">
+          <button className="quit-btn" onClick={onQuit}>
+            <CloseIcon size={14} /> Quit
+          </button>
+          <div className="timer">{formatTime(elapsedTime)}</div>
+          <div className="progress-stats">
+            <span className="eliminated">{eliminatedCount}</span>
+            <span className="separator">/</span>
+            <span className="total">{genitiveSession.words.length}</span>
+          </div>
+        </div>
+
+        <div className="game-stats-bar genitive-stats">
+          <div className="stat-item">
+            <span className="stat-label">{isPlural ? 'Mode' : 'Rule'}</span>
+            <span className="stat-value">{isPlural ? 'Plural' : (ruleInfo?.name || currentGenitiveWord.rule)}</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-label">Mistakes</span>
+            <span className="stat-value mistakes">{genitiveSession.wrongCount}</span>
+          </div>
+        </div>
+
+        <div className="prompt-area">
+          <div className="partitive-prompt-box">
+            <div className="partitive-word-header">
+              <span className="partitive-nominative">{displayWord}</span>
+              <span className="partitive-translation">({currentGenitiveWord.translation})</span>
+            </div>
+            
+            <div className="partitive-question">
+              <span className="partitive-label">{questionLabel}</span>
+            </div>
+            
+            {hasWrongAnswer && currentGenitiveWord.hint && (
+              <div className="partitive-hint">
+                <span className="hint-label">Hint:</span>
+                <span className="hint-text">{currentGenitiveWord.hint}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="input-area">
+          <form onSubmit={handleSubmit} className="input-wrapper">
+            <input
+              ref={inputRef}
+              type="text"
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+              placeholder={isPlural ? "Write the plural genitive form..." : "Write the genitive form..."}
+              disabled={!!feedback}
+              autoComplete="off"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            <button
+              type="submit"
+              className="submit-btn"
+              disabled={!answer.trim() || !!feedback}
+            >
+              Enter
+            </button>
+          </form>
+        </div>
+
+        {feedback && (
+          <div className={`feedback ${feedback.isCorrect ? 'correct' : 'incorrect'} ${!feedback.isCorrect ? 'detailed' : ''}`}>
+            <div className="feedback-title">
+              {feedback.isCorrect ? 'CORRECT!' : 'WRONG'}
+            </div>
+            
+            {!feedback.isCorrect && (
+              <>
+                <div className="feedback-answers">
+                  <div className="your-answer">
+                    <span className="label">Your answer:</span>
+                    <span className="answer wrong">{feedback.userAnswer}</span>
+                  </div>
+                  <div className="correct-answer">
+                    <span className="label">Correct:</span>
+                    <span className="answer">{feedback.correctAnswer}</span>
+                  </div>
+                </div>
+                
+                {feedback.verbTypeInfo && (
+                  <div className="feedback-rule-info">
+                    <span className="rule-name">{feedback.verbTypeInfo}</span>
+                    {feedback.rule && <span className="rule-text">{feedback.rule}</span>}
+                  </div>
+                )}
+              </>
+            )}
+            
+            <button className="continue-btn" onClick={handleContinue}>
+              {feedback.isCorrect ? 'Continue' : 'Try Again'}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Handle stem mode
+  if (mode === 'stem') {
+    if (!stemSession || !currentStemWord) return null;
+    
+    const activeCount = stemSession.words.filter(w => !w.eliminated).length;
+    const eliminatedCount = stemSession.words.length - activeCount;
+    const currentWordState = stemSession.words[stemSession.currentWordIndex];
+    const hasWrongAnswer = currentWordState.wrongCount > 0;
+    
+    const ruleInfo = STEM_RULES.find(r => r.id === currentStemWord.rule);
+    
+    return (
+      <div className="game-screen stem-mode">
+        <div className="game-header">
+          <button className="quit-btn" onClick={onQuit}>
+            <CloseIcon size={14} /> Quit
+          </button>
+          <div className="timer">{formatTime(elapsedTime)}</div>
+          <div className="progress-stats">
+            <span className="eliminated">{eliminatedCount}</span>
+            <span className="separator">/</span>
+            <span className="total">{stemSession.words.length}</span>
+          </div>
+        </div>
+
+        <div className="game-stats-bar stem-stats">
+          <div className="stat-item">
+            <span className="stat-label">Rule</span>
+            <span className="stat-value">{ruleInfo?.name || currentStemWord.rule}</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-label">Mistakes</span>
+            <span className="stat-value mistakes">{stemSession.wrongCount}</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-label">Remaining</span>
+            <span className="stat-value">{activeCount}</span>
+          </div>
+        </div>
+
+        <div className="prompt-area">
+          <div className="partitive-prompt-box">
+            <div className="partitive-word-header">
+              <span className="partitive-nominative">{currentStemWord.nominative}</span>
+              <span className="partitive-translation">({currentStemWord.translation})</span>
+            </div>
+            
+            <div className="partitive-question">
+              <span className="partitive-label">Mikä on vartalo? (What is the stem?)</span>
+            </div>
+            
+            {hasWrongAnswer && currentStemWord.hint && (
+              <div className="partitive-hint">
+                <span className="hint-label">Hint:</span>
+                <span className="hint-text">{currentStemWord.hint}</span>
+              </div>
+            )}
+            
+            {hasWrongAnswer && currentStemWord.genitive && (
+              <div className="partitive-hint genitive-reference">
+                <span className="hint-label">Genitive:</span>
+                <span className="hint-text">{currentStemWord.genitive} (remove -n to find stem)</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="input-area">
+          <form onSubmit={handleSubmit} className="input-wrapper">
+            <input
+              ref={inputRef}
+              type="text"
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+              placeholder="Write the stem (vartalo)..."
+              disabled={!!feedback}
+              autoComplete="off"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            <button
+              type="submit"
+              className="submit-btn"
+              disabled={!answer.trim() || !!feedback}
+            >
+              Enter
+            </button>
+          </form>
+        </div>
+
+        {feedback && (
+          <div className={`feedback ${feedback.isCorrect ? 'correct' : 'incorrect'}`}>
+            {feedback.isCorrect ? (
+              <div className="feedback-correct">
+                <span className="feedback-icon">✓</span>
+                <span className="feedback-text">Oikein! (Correct!)</span>
+              </div>
+            ) : (
+              <>
+                <div className="feedback-incorrect">
+                  <span className="feedback-icon">✗</span>
+                  <span className="feedback-text">Väärin (Wrong)</span>
+                </div>
+                
                 <div className="feedback-answers">
                   <div className="your-answer">
                     <span className="label">Your answer:</span>
@@ -944,10 +1138,6 @@ export function GameScreen({
                   {/* Available words */}
                   <div className="lyrics-word-options">
                     {currentLyricsItem.shuffledWords.map((word, idx) => {
-                      const isUsed = selectedWords.filter(w => w === word).length >= 
-                        currentLyricsItem.shuffledWords!.filter(w => w === word).length - 
-                        (currentLyricsItem.shuffledWords!.filter(w => w === word).length - 
-                          selectedWords.filter(w => w === word).length);
                       const usedCount = selectedWords.filter(w => w === word).length;
                       const availableCount = currentLyricsItem.shuffledWords!.slice(0, idx + 1).filter(w => w === word).length;
                       const shouldHide = usedCount >= availableCount;
@@ -1045,7 +1235,8 @@ export function GameScreen({
   }
 
   // Handle verb type arena modes
-  const isVerbTypeMode = mode === 'verb-type-present' || mode === 'verb-type-imperfect';
+  const isVerbTypeMode = mode === 'verb-type-present' || mode === 'verb-type-negative' || 
+                         mode === 'verb-type-imperfect' || mode === 'verb-type-imperfect-negative';
   
   if (isVerbTypeMode) {
     if (!verbTypeSession) return null;
@@ -1059,7 +1250,13 @@ export function GameScreen({
     const completedVerbs = verbTypeSession.verbs.filter(v => v.completed).length;
     const totalVerbs = verbTypeSession.verbs.length;
     
-    const tenseLabel = mode === 'verb-type-present' ? 'Preesens' : 'Imperfekti';
+    const tenseLabels: Record<string, string> = {
+      'verb-type-present': 'Preesens',
+      'verb-type-negative': 'Kieltomuoto',
+      'verb-type-imperfect': 'Imperfekti',
+      'verb-type-imperfect-negative': 'Imperfektin Kielto',
+    };
+    const tenseLabel = tenseLabels[mode] || 'Unknown';
     
     return (
       <div className="game-screen verb-type-mode">

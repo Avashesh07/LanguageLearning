@@ -1,8 +1,6 @@
 // Finnish Verb Arena - Types
 
-export type GameMode = 'menu' | 'recall' | 'active-recall' | 'conjugation' | 'consonant-gradation' | 'imperfect' | 'vocabulary-recall' | 'vocabulary-active-recall' | 'vocabulary-memorise' | 'cases-fill-blank' | 'verb-type-present' | 'verb-type-imperfect' | 'partitive' | 'lyrics';
-
-export type VerbLevel = 'A1' | 'A2' | 'B1';
+export type GameMode = 'menu' | 'vocabulary-recall' | 'vocabulary-active-recall' | 'vocabulary-memorise' | 'cases-fill-blank' | 'cases-fill-blank-plural' | 'verb-type-present' | 'verb-type-negative' | 'verb-type-imperfect' | 'verb-type-imperfect-negative' | 'partitive' | 'partitive-plural' | 'plural' | 'genitive' | 'genitive-plural' | 'stem' | 'lyrics';
 
 export type Person = 'minä' | 'sinä' | 'hän' | 'me' | 'te' | 'he';
 
@@ -17,49 +15,20 @@ export interface VerbForms {
 
 export interface Verb {
   infinitive: string;
-  type: number;
+  type: number; // Verb type 1-6
   translation: string;
   synonyms?: string[];
-  level: VerbLevel;
   forms?: VerbForms;
-}
-
-// Track each verb's progress in current session
-export interface VerbSessionState {
-  infinitive: string;
-  correctCount: number;
-  wrongCount: number;
-  eliminated: boolean;
-}
-
-// Session state for a single playthrough
-export interface SessionState {
-  mode: GameMode;
-  verbs: VerbSessionState[];
-  currentVerbIndex: number;
-  startTime: number | null;
-  endTime: number | null;
-  wrongCount: number;
-  isComplete: boolean;
 }
 
 // Best time record
 export interface TimeRecord {
   mode: GameMode;
-  levels: VerbLevel[];
   timeMs: number;
   date: string;
   accuracy: number;
   verbCount: number;
-}
-
-// Track completion per level
-export interface LevelProgress {
-  level: VerbLevel;
-  recallCompleted: boolean;
-  activeRecallCompleted: boolean;
-  conjugationCompleted: boolean;
-  imperfectCompleted?: boolean;
+  verbTypes?: number[]; // For verb type sessions
 }
 
 // Track completion per Tavoite (vocabulary)
@@ -95,9 +64,7 @@ export type VocabularySource = 'kurssin-arvostelu' | 'suomen-mestari-2';
 
 // Player's persistent state
 export interface PlayerState {
-  levelProgress: LevelProgress[];
   bestTimes: TimeRecord[];
-  imperfectCompleted?: boolean; // Track imperfect mode completion
   tavoiteProgress?: TavoiteProgress[]; // Track Tavoite completions
   casesProgress?: CasesProgress[]; // Track cases game progress
   sm2Progress?: SM2ChapterProgress[]; // Track Suomen Mestari 2 chapter completions
@@ -109,18 +76,8 @@ export interface PlayerState {
 export interface GameState {
   mode: GameMode;
   player: PlayerState;
-  session: SessionState | null;
-  currentVerb: Verb | null;
   feedback: FeedbackData | null;
-  // Conjugation specific
-  currentPerson?: Person;
-  currentPolarity?: Polarity;
-  currentSentence?: string; // Fill-in-the-blank sentence
-  // Consonant gradation specific
-  currentGradationQuestion?: ConsonantGradationQuestion;
-  gradationSession?: ConsonantGradationSessionState;
-  questions: ConsonantGradationQuestion[];
-  // Vocabulary (Kurssin Arvostelu) specific
+  // Vocabulary specific
   vocabularySession?: VocabularySessionState;
   currentVocabularyWord?: CurrentVocabularyWord;
   // Finnish Cases specific
@@ -131,6 +88,15 @@ export interface GameState {
   // Partitive Case specific
   partitiveSession?: PartitiveSessionState;
   currentPartitiveWord?: CurrentPartitiveWord;
+  // Plural specific
+  pluralSession?: PluralSessionState;
+  currentPluralWord?: CurrentPluralWord;
+  // Genitive specific
+  genitiveSession?: GenitiveSessionState;
+  currentGenitiveWord?: CurrentGenitiveWord;
+  // Stem (Vartalo) specific
+  stemSession?: StemSessionState;
+  currentStemWord?: CurrentStemWord;
   // Lyrics Learning specific
   lyricsSession?: LyricsSessionState;
   currentLyricsItem?: CurrentLyricsItem;
@@ -149,40 +115,6 @@ export interface FeedbackData {
   // Example sentence with translation for vocabulary
   exampleSentence?: string;
   exampleTranslation?: string;
-}
-
-// Consonant Gradation Types
-export type ConsonantGradationQuestionType = 'true-false' | 'fill-blank';
-
-export interface ConsonantGradationQuestion {
-  id: string;
-  type: ConsonantGradationQuestionType;
-  strongForm: string;
-  weakForm: string;
-  context: string; // e.g., "pankki → pankissa"
-  rule: string; // e.g., "kk → k"
-  category: 'noun' | 'verb';
-  // For true/false questions
-  statement?: string;
-  correctAnswer?: boolean;
-  // For fill-in-the-blank
-  blankForm?: string; // The form with blank
-  expectedAnswer?: string;
-  // Learning info
-  caseInfo?: string; // e.g., "inessive case (-ssa/-ssä)"
-  person?: string; // e.g., "minä"
-}
-
-export type GradationStage = 'rule-confirm' | 'noun-practice' | 'verb-guide' | 'verb-practice';
-
-export interface ConsonantGradationSessionState {
-  currentRuleIndex: number;
-  currentStage: GradationStage;
-  currentQuestionIndex: number; // For noun/verb practice within a rule
-  startTime: number | null;
-  endTime: number | null;
-  wrongCount: number;
-  isComplete: boolean;
 }
 
 // Kurssin Arvostelu (Course Vocabulary) Types
@@ -244,13 +176,14 @@ export interface CaseSentenceState {
   category: CaseCategory;
   sentenceWithBlank: string;
   hint?: string;
+  isPlural?: boolean;
   correctCount: number;
   wrongCount: number;
   eliminated: boolean;
 }
 
 export interface CasesSessionState {
-  mode: 'cases-fill-blank';
+  mode: 'cases-fill-blank' | 'cases-fill-blank-plural';
   selectedCategories: CaseCategory[];
   sentences: CaseSentenceState[];
   currentSentenceIndex: number;
@@ -269,13 +202,17 @@ export interface CurrentCaseSentence {
   baseWord: string;
   sentenceWithBlank: string;
   hint?: string;
+  isPlural?: boolean;
 }
 
 export interface CasesProgress {
   category: CaseCategory;
   fillBlankCompleted: boolean;
+  fillBlankPluralCompleted?: boolean; // Track plural mode completion
   bestTimeMs?: number;
   bestDate?: string;
+  bestTimeMsPlural?: number;
+  bestDatePlural?: string;
 }
 
 // Verb Type Arena Types - Practice all forms of each verb
@@ -297,7 +234,7 @@ export interface VerbTypeVerbState {
 }
 
 export interface VerbTypeSessionState {
-  mode: 'verb-type-present' | 'verb-type-imperfect';
+  mode: 'verb-type-present' | 'verb-type-negative' | 'verb-type-imperfect' | 'verb-type-imperfect-negative';
   selectedTypes: number[];
   verbs: VerbTypeVerbState[];
   currentVerbIndex: number;
@@ -320,16 +257,19 @@ export type PartitiveRule =
 export interface PartitiveWordState {
   nominative: string;
   partitive: string;
+  nominativePlural?: string;
+  partitivePlural?: string;
   translation: string;
   rule: PartitiveRule;
   hint?: string;
+  hintPlural?: string;
   correctCount: number;
   wrongCount: number;
   eliminated: boolean;
 }
 
 export interface PartitiveSessionState {
-  mode: 'partitive';
+  mode: 'partitive' | 'partitive-plural';
   selectedRules: PartitiveRule[];
   words: PartitiveWordState[];
   currentWordIndex: number;
@@ -342,9 +282,141 @@ export interface PartitiveSessionState {
 export interface CurrentPartitiveWord {
   nominative: string;
   partitive: string;
+  nominativePlural?: string;
+  partitivePlural?: string;
   translation: string;
   rule: PartitiveRule;
   hint?: string;
+  hintPlural?: string;
+}
+
+// Plural Types (same rules as partitive/genitive)
+export type PluralRule = 
+  | 'single-vowel'
+  | 'two-vowels'
+  | 'new-i'
+  | 'old-i'
+  | 'e-ending'
+  | 'consonant'
+  | 'nen-ending';
+
+export interface PluralWordState {
+  nominative: string;
+  nominativePlural: string;
+  translation: string;
+  rule: PluralRule;
+  hint?: string;
+  correctCount: number;
+  wrongCount: number;
+  eliminated: boolean;
+}
+
+export interface PluralSessionState {
+  mode: 'plural';
+  selectedRules: PluralRule[];
+  words: PluralWordState[];
+  currentWordIndex: number;
+  startTime: number | null;
+  endTime: number | null;
+  wrongCount: number;
+  isComplete: boolean;
+}
+
+export interface CurrentPluralWord {
+  nominative: string;
+  nominativePlural: string;
+  translation: string;
+  rule: PluralRule;
+  hint?: string;
+}
+
+// Genitive Types
+export type GenitiveRule = 
+  | 'single-vowel'
+  | 'two-vowels'
+  | 'new-i'
+  | 'old-i'
+  | 'e-ending'
+  | 'consonant'
+  | 'nen-ending';
+
+export interface GenitiveWordState {
+  nominative: string;
+  genitiveSingular: string;
+  nominativePlural: string;
+  genitivePlural: string;
+  translation: string;
+  rule: GenitiveRule;
+  hint?: string;
+  correctCount: number;
+  wrongCount: number;
+  eliminated: boolean;
+}
+
+export interface GenitiveSessionState {
+  mode: 'genitive' | 'genitive-plural';
+  selectedRules: GenitiveRule[];
+  words: GenitiveWordState[];
+  currentWordIndex: number;
+  startTime: number | null;
+  endTime: number | null;
+  wrongCount: number;
+  isComplete: boolean;
+}
+
+export interface CurrentGenitiveWord {
+  nominative: string;
+  genitiveSingular: string;
+  nominativePlural: string;
+  genitivePlural: string;
+  translation: string;
+  rule: GenitiveRule;
+  hint?: string;
+}
+
+// Stem (Vartalo) Types
+export type StemRule = 
+  | 'no-change'
+  | 'consonant-gradation'
+  | 'old-i-to-e'
+  | 'e-doubling'
+  | 'nen-to-se'
+  | 's-to-kse'
+  | 's-to-de'
+  | 'n-to-me'
+  | 'consonant-stem'
+  | 'special';
+
+export interface StemWordState {
+  nominative: string;
+  stem: string;
+  translation: string;
+  rule: StemRule;
+  hint?: string;
+  genitive?: string;
+  correctCount: number;
+  wrongCount: number;
+  eliminated: boolean;
+}
+
+export interface StemSessionState {
+  mode: 'stem';
+  selectedRules: StemRule[];
+  words: StemWordState[];
+  currentWordIndex: number;
+  startTime: number | null;
+  endTime: number | null;
+  wrongCount: number;
+  isComplete: boolean;
+}
+
+export interface CurrentStemWord {
+  nominative: string;
+  stem: string;
+  translation: string;
+  rule: StemRule;
+  hint?: string;
+  genitive?: string;
 }
 
 // Lyrics Learning Types

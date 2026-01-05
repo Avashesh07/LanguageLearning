@@ -3959,6 +3959,16 @@
   cursor: not-allowed;
 }
 
+.mode-button.verb-type.negative {
+  border-color: var(--error-red);
+  background: linear-gradient(135deg, rgba(201, 74, 74, 0.15), rgba(201, 74, 74, 0.05));
+}
+
+.mode-button.verb-type.negative:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(201, 74, 74, 0.25), rgba(201, 74, 74, 0.1));
+  transform: translateY(-2px);
+}
+
 /* Verb Type Game Screen */
 .game-screen.verb-type-mode {
   background: linear-gradient(180deg, var(--bg-primary) 0%, rgba(240, 198, 116, 0.03) 100%);
@@ -4205,6 +4215,15 @@
   font-weight: 600;
 }
 
+.example-item .example-note {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  opacity: 0.8;
+  font-style: italic;
+  margin-top: 0.1rem;
+}
+
 /* Partitive Rule Selector */
 .partitive-rule-selector {
   width: 100%;
@@ -4272,10 +4291,43 @@
   font-style: italic;
 }
 
+.rule-finnish-label {
+  font-size: 0.9rem;
+  color: var(--highlight-amber);
+  font-weight: 600;
+  margin: 0.2rem 0;
+}
+
 .rule-example {
   font-size: 0.85rem;
   color: var(--highlight-amber);
   font-weight: 500;
+}
+
+.rule-examples-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-top: 0.3rem;
+}
+
+.rule-examples-list .rule-example {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+}
+
+/* Stem mode specific styles */
+.mode-button.stem-mode {
+  border-color: rgba(155, 89, 182, 0.4);
+  background: linear-gradient(135deg, rgba(155, 89, 182, 0.15) 0%, rgba(142, 68, 173, 0.1) 100%);
+}
+
+.mode-button.stem-mode:hover {
+  border-color: #9b59b6;
+  background: linear-gradient(135deg, rgba(155, 89, 182, 0.25) 0%, rgba(142, 68, 173, 0.2) 100%);
 }
 
 /* Partitive Game Modes */

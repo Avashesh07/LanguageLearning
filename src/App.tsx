@@ -8,7 +8,7 @@ import { StudyScreen } from './components/StudyScreen';
 import { getSM2CycleById } from './data/suomenMestari2';
 
 function App() {
-  const [lastActiveTab, setLastActiveTab] = useState<'verbs' | 'vocabulary' | 'cases' | 'partitive' | 'lyrics'>('verbs');
+  const [lastActiveTab, setLastActiveTab] = useState<'verbs' | 'vocabulary' | 'cases' | 'partitive' | 'plural' | 'genitive' | 'stem' | 'lyrics'>('verbs');
   const [studyMode, setStudyMode] = useState<{ active: boolean; cycleIds: string[] }>({ active: false, cycleIds: [] });
   const {
     state,
@@ -51,6 +51,24 @@ function App() {
     startPartitiveSession,
     getPartitiveWordCount,
     partitiveRules,
+    // Plural
+    selectedPluralRules,
+    setSelectedPluralRules,
+    startPluralSession,
+    getPluralWordCount,
+    pluralRules,
+    // Genitive
+    selectedGenitiveRules,
+    setSelectedGenitiveRules,
+    startGenitiveSession,
+    getGenitiveWordCount,
+    genitiveRules,
+    // Stem
+    selectedStemRules,
+    setSelectedStemRules,
+    startStemSession,
+    getStemWordCount,
+    stemRules,
     // Lyrics
     selectedSongId,
     setSelectedSongId,
@@ -61,26 +79,34 @@ function App() {
     allSongs,
   } = useGameState();
 
-  const isSessionComplete = state.session?.isComplete;
-  const isGradationComplete = state.gradationSession?.isComplete;
   const isVocabularyComplete = state.vocabularySession?.isComplete;
   const isCasesComplete = state.casesSession?.isComplete;
   const isVerbTypeComplete = state.verbTypeSession?.isComplete;
   const isPartitiveComplete = state.partitiveSession?.isComplete;
+  const isPluralComplete = state.pluralSession?.isComplete;
+  const isGenitiveComplete = state.genitiveSession?.isComplete;
+  const isStemComplete = state.stemSession?.isComplete;
   const isLyricsComplete = state.lyricsSession?.isComplete;
-  const isComplete = isSessionComplete || isGradationComplete || isVocabularyComplete || isCasesComplete || isVerbTypeComplete || isPartitiveComplete || isLyricsComplete;
+  const isComplete = isVocabularyComplete || isCasesComplete || isVerbTypeComplete || isPartitiveComplete || isPluralComplete || isGenitiveComplete || isStemComplete || isLyricsComplete;
 
   // Track which tab should be active based on current mode
   useEffect(() => {
     if (state.mode === 'vocabulary-recall' || state.mode === 'vocabulary-active-recall' || state.mode === 'vocabulary-memorise') {
       setLastActiveTab('vocabulary');
-    } else if (state.mode === 'cases-fill-blank') {
+    } else if (state.mode === 'cases-fill-blank' || state.mode === 'cases-fill-blank-plural') {
       setLastActiveTab('cases');
-    } else if (state.mode === 'partitive') {
+    } else if (state.mode === 'partitive' || state.mode === 'partitive-plural') {
       setLastActiveTab('partitive');
+    } else if (state.mode === 'plural') {
+      setLastActiveTab('plural');
+    } else if (state.mode === 'genitive' || state.mode === 'genitive-plural') {
+      setLastActiveTab('genitive');
+    } else if (state.mode === 'stem') {
+      setLastActiveTab('stem');
     } else if (state.mode === 'lyrics') {
       setLastActiveTab('lyrics');
-    } else if (state.mode === 'verb-type-present' || state.mode === 'verb-type-imperfect') {
+    } else if (state.mode === 'verb-type-present' || state.mode === 'verb-type-negative' || 
+               state.mode === 'verb-type-imperfect' || state.mode === 'verb-type-imperfect-negative') {
       setLastActiveTab('verbs');
     } else if (state.mode === 'menu') {
       // Keep the last active tab when returning to menu
@@ -104,15 +130,27 @@ function App() {
       } else {
         startVocabularySession(state.mode, selectedTavoites);
       }
-    } else if (state.mode === 'cases-fill-blank') {
-      startCasesSession(selectedCaseCategories);
+    } else if (state.mode === 'cases-fill-blank' || state.mode === 'cases-fill-blank-plural') {
+      const isPlural = state.mode === 'cases-fill-blank-plural';
+      startCasesSession(selectedCaseCategories, isPlural);
     } else if (state.mode === 'verb-type-present' || state.mode === 'verb-type-imperfect') {
       // Verb type arena - replay with same settings
       const tense = state.mode === 'verb-type-present' ? 'present' : 'imperfect';
       startVerbTypeSession(tense, selectedVerbTypes);
-    } else if (state.mode === 'partitive') {
+    } else if (state.mode === 'partitive' || state.mode === 'partitive-plural') {
       // Partitive - replay with same rules
-      startPartitiveSession(selectedPartitiveRules);
+      const isPlural = state.mode === 'partitive-plural';
+      startPartitiveSession(selectedPartitiveRules, isPlural);
+    } else if (state.mode === 'plural') {
+      // Plural - replay with same rules
+      startPluralSession(selectedPluralRules);
+    } else if (state.mode === 'genitive' || state.mode === 'genitive-plural') {
+      // Genitive - replay with same rules
+      const isPlural = state.mode === 'genitive-plural';
+      startGenitiveSession(selectedGenitiveRules, isPlural);
+    } else if (state.mode === 'stem') {
+      // Stem - replay with same rules
+      startStemSession(selectedStemRules);
     } else if (state.mode === 'lyrics') {
       // Lyrics - replay with same song and mode
       startLyricsSession(selectedSongId, selectedLyricsMode);
@@ -190,6 +228,21 @@ function App() {
           onStartPartitiveSession={startPartitiveSession}
           getPartitiveWordCount={getPartitiveWordCount}
           partitiveRules={partitiveRules}
+          selectedPluralRules={selectedPluralRules}
+          onSelectPluralRules={setSelectedPluralRules}
+          onStartPluralSession={startPluralSession}
+          getPluralWordCount={getPluralWordCount}
+          pluralRules={pluralRules}
+          selectedGenitiveRules={selectedGenitiveRules}
+          onSelectGenitiveRules={setSelectedGenitiveRules}
+          onStartGenitiveSession={startGenitiveSession}
+          getGenitiveWordCount={getGenitiveWordCount}
+          genitiveRules={genitiveRules}
+          selectedStemRules={selectedStemRules}
+          onSelectStemRules={setSelectedStemRules}
+          onStartStemSession={startStemSession}
+          getStemWordCount={getStemWordCount}
+          stemRules={stemRules}
           selectedSongId={selectedSongId}
           onSelectSongId={setSelectedSongId}
           selectedLyricsMode={selectedLyricsMode}
@@ -202,18 +255,18 @@ function App() {
         />
       ) : isComplete ? (
         <ResultsScreen
-          session={state.session!}
           player={state.player}
           mode={state.mode}
-          levels={[]}
           onReturnToMenu={returnToMenu}
           onPlayAgain={handlePlayAgain}
           formatTime={formatTime}
-          gradationSession={state.gradationSession}
           vocabularySession={state.vocabularySession}
           casesSession={state.casesSession}
           verbTypeSession={state.verbTypeSession}
           partitiveSession={state.partitiveSession}
+          pluralSession={state.pluralSession}
+          genitiveSession={state.genitiveSession}
+          stemSession={state.stemSession}
           lyricsSession={state.lyricsSession}
         />
       ) : (

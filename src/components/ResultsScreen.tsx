@@ -1,61 +1,67 @@
-import type { SessionState, PlayerState, GameMode, VerbLevel, ConsonantGradationSessionState, VocabularySessionState, CasesSessionState, VerbTypeSessionState, PartitiveSessionState, LyricsSessionState } from '../types';
+import type { PlayerState, GameMode, VocabularySessionState, CasesSessionState, VerbTypeSessionState, PartitiveSessionState, PluralSessionState, GenitiveSessionState, StemSessionState, LyricsSessionState } from '../types';
 import { StarIcon, TrophyIcon, MapPinIcon, TargetIcon } from './Icons';
 
 interface ResultsScreenProps {
-  session: SessionState | null;
   player: PlayerState;
   mode: GameMode;
-  levels: VerbLevel[];
   onReturnToMenu: () => void;
   onPlayAgain: () => void;
   formatTime: (ms: number) => string;
-  gradationSession?: ConsonantGradationSessionState;
   vocabularySession?: VocabularySessionState;
   casesSession?: CasesSessionState;
   verbTypeSession?: VerbTypeSessionState;
   partitiveSession?: PartitiveSessionState;
+  pluralSession?: PluralSessionState;
+  genitiveSession?: GenitiveSessionState;
+  stemSession?: StemSessionState;
   lyricsSession?: LyricsSessionState;
 }
 
 const MODE_NAMES: Record<GameMode, string> = {
   'menu': '',
-  'recall': 'Recall',
-  'active-recall': 'Active Recall',
-  'conjugation': 'Conjugation',
-  'imperfect': 'Imperfect Tense',
-  'consonant-gradation': 'Consonant Gradation',
   'vocabulary-recall': 'Vocabulary Recall',
   'vocabulary-active-recall': 'Vocabulary Active Recall',
   'vocabulary-memorise': 'Opettele',
   'cases-fill-blank': 'Cases Fill in the Blank',
+  'cases-fill-blank-plural': 'Plural Cases (Monikko)',
   'verb-type-present': 'Present Tense Conjugation',
+  'verb-type-negative': 'Present Negative Conjugation',
   'verb-type-imperfect': 'Past Tense Conjugation',
+  'verb-type-imperfect-negative': 'Past Negative Conjugation',
   'partitive': 'Partitive Case Practice',
+  'partitive-plural': 'Partitive Plural Practice',
+  'plural': 'Nominative Plural Practice',
+  'genitive': 'Genitive Case Practice',
+  'genitive-plural': 'Genitive Plural Practice',
+  'stem': 'Word Stem Practice',
   'lyrics': 'Song Lyrics Learning',
 };
 
 export function ResultsScreen({
-  session,
   player,
   mode,
-  levels,
   onReturnToMenu,
   onPlayAgain,
   formatTime,
-  gradationSession,
   vocabularySession,
   casesSession,
   verbTypeSession,
   partitiveSession,
+  pluralSession,
+  genitiveSession,
+  stemSession,
   lyricsSession,
 }: ResultsScreenProps) {
   // Handle different modes
-  const isGradationMode = mode === 'consonant-gradation';
   const isVocabularyMode = mode === 'vocabulary-recall' || mode === 'vocabulary-active-recall';
   const isMemoriseMode = mode === 'vocabulary-memorise';
-  const isCasesMode = mode === 'cases-fill-blank';
-  const isVerbTypeMode = mode === 'verb-type-present' || mode === 'verb-type-imperfect';
-  const isPartitiveMode = mode === 'partitive';
+  const isCasesMode = mode === 'cases-fill-blank' || mode === 'cases-fill-blank-plural';
+  const isVerbTypeMode = mode === 'verb-type-present' || mode === 'verb-type-negative' || 
+                         mode === 'verb-type-imperfect' || mode === 'verb-type-imperfect-negative';
+  const isPartitiveMode = mode === 'partitive' || mode === 'partitive-plural';
+  const isPluralMode = mode === 'plural';
+  const isGenitiveMode = mode === 'genitive' || mode === 'genitive-plural';
+  const isStemMode = mode === 'stem';
   const isLyricsMode = mode === 'lyrics';
   
   let timeMs: number;
@@ -64,13 +70,7 @@ export function ResultsScreen({
   let totalQuestions: number;
   let accuracy: number;
   
-  if (isGradationMode && gradationSession) {
-    timeMs = gradationSession.endTime! - gradationSession.startTime!;
-    isPerfect = gradationSession.wrongCount === 0;
-    wrongCount = gradationSession.wrongCount;
-    totalQuestions = gradationSession.currentQuestionIndex || 1; // Fallback if not tracked
-    accuracy = totalQuestions > 0 ? Math.round(((totalQuestions - wrongCount) / totalQuestions) * 100) : 100;
-  } else if ((isVocabularyMode || isMemoriseMode) && vocabularySession) {
+  if ((isVocabularyMode || isMemoriseMode) && vocabularySession) {
     timeMs = vocabularySession.endTime! - vocabularySession.startTime!;
     isPerfect = vocabularySession.wrongCount === 0;
     wrongCount = vocabularySession.wrongCount;
@@ -99,6 +99,27 @@ export function ResultsScreen({
     totalQuestions = partitiveSession.words.length;
     const totalAttempts = partitiveSession.words.reduce((sum, w) => sum + w.correctCount, 0) + partitiveSession.wrongCount;
     accuracy = totalAttempts > 0 ? Math.round(((totalAttempts - partitiveSession.wrongCount) / totalAttempts) * 100) : 100;
+  } else if (isPluralMode && pluralSession) {
+    timeMs = pluralSession.endTime! - pluralSession.startTime!;
+    isPerfect = pluralSession.wrongCount === 0;
+    wrongCount = pluralSession.wrongCount;
+    totalQuestions = pluralSession.words.length;
+    const totalAttempts = pluralSession.words.reduce((sum, w) => sum + w.correctCount, 0) + pluralSession.wrongCount;
+    accuracy = totalAttempts > 0 ? Math.round(((totalAttempts - pluralSession.wrongCount) / totalAttempts) * 100) : 100;
+  } else if (isGenitiveMode && genitiveSession) {
+    timeMs = genitiveSession.endTime! - genitiveSession.startTime!;
+    isPerfect = genitiveSession.wrongCount === 0;
+    wrongCount = genitiveSession.wrongCount;
+    totalQuestions = genitiveSession.words.length;
+    const totalAttempts = genitiveSession.words.reduce((sum, w) => sum + w.correctCount, 0) + genitiveSession.wrongCount;
+    accuracy = totalAttempts > 0 ? Math.round(((totalAttempts - genitiveSession.wrongCount) / totalAttempts) * 100) : 100;
+  } else if (isStemMode && stemSession) {
+    timeMs = stemSession.endTime! - stemSession.startTime!;
+    isPerfect = stemSession.wrongCount === 0;
+    wrongCount = stemSession.wrongCount;
+    totalQuestions = stemSession.words.length;
+    const totalAttempts = stemSession.words.reduce((sum, w) => sum + w.correctCount, 0) + stemSession.wrongCount;
+    accuracy = totalAttempts > 0 ? Math.round(((totalAttempts - stemSession.wrongCount) / totalAttempts) * 100) : 100;
   } else if (isLyricsMode && lyricsSession) {
     timeMs = lyricsSession.endTime! - lyricsSession.startTime!;
     isPerfect = lyricsSession.wrongCount === 0;
@@ -108,40 +129,12 @@ export function ResultsScreen({
     const items = isWordMode ? lyricsSession.words : lyricsSession.lines;
     const totalAttempts = items.reduce((sum, item) => sum + item.correctCount, 0) + lyricsSession.wrongCount;
     accuracy = totalAttempts > 0 ? Math.round(((totalAttempts - lyricsSession.wrongCount) / totalAttempts) * 100) : 100;
-  } else if (session) {
-    timeMs = session.endTime! - session.startTime!;
-    isPerfect = session.wrongCount === 0;
-    wrongCount = session.wrongCount;
-    const totalAttempts = session.verbs.reduce((sum, v) => sum + v.correctCount, 0) + session.wrongCount;
-    accuracy = Math.round(((totalAttempts - session.wrongCount) / totalAttempts) * 100);
-    totalQuestions = session.verbs.length;
   } else {
     return null;
   }
   
-  const levelKey = [...levels].sort().join('+');
-  const bestTime = player.bestTimes.find(
-    (t) => t.mode === mode && (isGradationMode || isVocabularyMode || isCasesMode || [...t.levels].sort().join('+') === levelKey)
-  );
+  const bestTime = player.bestTimes.find((t) => t.mode === mode);
   const isNewRecord = bestTime && bestTime.timeMs === timeMs;
-
-  // Check what was unlocked (only for verb arena modes)
-  const checkUnlock = () => {
-    if (isVocabularyMode || isCasesMode) return { unlocked: false, next: '', desc: '' };
-    
-    if (mode === 'recall' && isPerfect) {
-      return { unlocked: true, next: 'Active Recall', desc: 'English → Finnish' };
-    }
-    if (mode === 'active-recall' && isPerfect) {
-      return { unlocked: true, next: 'Conjugation', desc: 'Conjugate all verb forms' };
-    }
-    if (mode === 'conjugation' && isPerfect) {
-      return { unlocked: true, next: 'Imperfect Tense', desc: 'Past tense conjugation practice' };
-    }
-    return { unlocked: false, next: '', desc: '' };
-  };
-
-  const unlock = checkUnlock();
 
   return (
     <div className="results-screen">
@@ -149,10 +142,13 @@ export function ResultsScreen({
         {isPerfect ? 'PERFECT!' : 'COMPLETED'}
       </h1>
 
-      <div className={`results-mode ${isVocabularyMode || isMemoriseMode ? 'vocabulary' : ''} ${isCasesMode ? 'cases' : ''} ${isVerbTypeMode ? 'verb-type' : ''} ${isPartitiveMode ? 'partitive' : ''} ${isLyricsMode ? 'lyrics' : ''}`}>
+      <div className={`results-mode ${isVocabularyMode || isMemoriseMode ? 'vocabulary' : ''} ${isCasesMode ? 'cases' : ''} ${isVerbTypeMode ? 'verb-type' : ''} ${isPartitiveMode ? 'partitive' : ''} ${isPluralMode ? 'plural' : ''} ${isGenitiveMode ? 'genitive' : ''} ${isStemMode ? 'stem' : ''} ${isLyricsMode ? 'lyrics' : ''}`}>
         {isCasesMode && <MapPinIcon size={20} />}
         {isVerbTypeMode && <TargetIcon size={20} />}
         {isPartitiveMode && <TargetIcon size={20} />}
+        {isPluralMode && <TargetIcon size={20} />}
+        {isGenitiveMode && <TargetIcon size={20} />}
+        {isStemMode && <TargetIcon size={20} />}
         {isLyricsMode && '🎵'}
         {MODE_NAMES[mode]}
       </div>
@@ -173,6 +169,30 @@ export function ResultsScreen({
         </div>
       )}
 
+      {isPluralMode && pluralSession && (
+        <div className="results-partitive-rules">
+          {pluralSession.selectedRules.map((rule) => (
+            <span key={rule} className="rule-badge">{rule}</span>
+          ))}
+        </div>
+      )}
+
+      {isGenitiveMode && genitiveSession && (
+        <div className="results-partitive-rules">
+          {genitiveSession.selectedRules.map((rule) => (
+            <span key={rule} className="rule-badge">{rule}</span>
+          ))}
+        </div>
+      )}
+
+      {isStemMode && stemSession && (
+        <div className="results-partitive-rules">
+          {stemSession.selectedRules.map((rule) => (
+            <span key={rule} className="rule-badge">{rule}</span>
+          ))}
+        </div>
+      )}
+
       {isLyricsMode && lyricsSession && (
         <div className="results-lyrics-info">
           <span className="song-badge">🎵 {lyricsSession.songTitle}</span>
@@ -180,13 +200,6 @@ export function ResultsScreen({
         </div>
       )}
 
-      {!isGradationMode && !isVocabularyMode && !isCasesMode && !isVerbTypeMode && !isPartitiveMode && !isLyricsMode && (
-        <div className="results-levels">
-          {levels.map((level) => (
-            <span key={level} className="level-badge">{level}</span>
-          ))}
-        </div>
-      )}
 
       {isVocabularyMode && vocabularySession && (
         <div className="results-tavoites">
@@ -230,7 +243,7 @@ export function ResultsScreen({
 
         <div className="result-item">
           <span className="result-label">
-            {isGradationMode ? 'Questions' : isVocabularyMode ? 'Words' : isCasesMode ? 'Sentences' : isVerbTypeMode ? 'Verbs' : isPartitiveMode ? 'Words' : isLyricsMode ? (lyricsSession?.subMode === 'word-match' || lyricsSession?.subMode === 'word-recall' ? 'Words' : 'Lines') : 'Verbs'}
+            {isVocabularyMode ? 'Words' : isCasesMode ? 'Sentences' : isVerbTypeMode ? 'Verbs' : isPartitiveMode ? 'Words' : isPluralMode ? 'Words' : isGenitiveMode ? 'Words' : isStemMode ? 'Words' : isLyricsMode ? (lyricsSession?.subMode === 'word-match' || lyricsSession?.subMode === 'word-recall' ? 'Words' : 'Lines') : 'Verbs'}
           </span>
           <span className="result-value">{totalQuestions}</span>
         </div>
@@ -243,18 +256,6 @@ export function ResultsScreen({
         )}
       </div>
 
-      {unlock.unlocked && (
-        <div className="unlock-notice">
-          <h3><TrophyIcon size={20} color="#4caf50" /> {unlock.next} Unlocked!</h3>
-          <p>{unlock.desc} for {levels.join(' + ')}</p>
-        </div>
-      )}
-
-      {!isPerfect && !isVocabularyMode && !isCasesMode && (
-        <div className="hint-notice">
-          Complete with 0 mistakes to unlock the next mode
-        </div>
-      )}
 
       {isPerfect && isCasesMode && (
         <div className="hint-notice success">

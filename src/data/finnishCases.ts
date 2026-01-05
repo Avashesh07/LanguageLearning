@@ -89,7 +89,7 @@ export const CASES: Record<CaseType, CaseInfo> = {
   },
 };
 
-// Nouns with all their case forms
+// Nouns with all their case forms (singular and plural)
 export interface NounForms {
   nominative: string;
   inessive: string;
@@ -100,15 +100,26 @@ export interface NounForms {
   allative: string;
 }
 
+export interface NounFormsPlural {
+  nominative: string;      // talot
+  inessive: string;        // taloissa
+  elative: string;         // taloista
+  illative: string;        // taloihin
+  adessive: string;        // taloilla
+  ablative: string;        // taloilta
+  allative: string;        // taloille
+}
+
 export interface Noun {
   base: string;
   translation: string;
   forms: NounForms;
+  pluralForms?: NounFormsPlural;  // Plural case forms
   usesLocationCases: boolean; // true = sisällä (inside), false = päällä (on surface)
   category: string;
 }
 
-// Common nouns with their case forms
+// Common nouns with their case forms (singular and plural)
 export const NOUNS: Noun[] = [
   // Places that use LOCATION cases (inside)
   {
@@ -122,6 +133,15 @@ export const NOUNS: Noun[] = [
       adessive: 'talolla',
       ablative: 'talolta',
       allative: 'talolle',
+    },
+    pluralForms: {
+      nominative: 'talot',
+      inessive: 'taloissa',
+      elative: 'taloista',
+      illative: 'taloihin',
+      adessive: 'taloilla',
+      ablative: 'taloilta',
+      allative: 'taloille',
     },
     usesLocationCases: true,
     category: 'building',
@@ -138,6 +158,15 @@ export const NOUNS: Noun[] = [
       ablative: 'kaupalta',
       allative: 'kaupalle',
     },
+    pluralForms: {
+      nominative: 'kaupat',
+      inessive: 'kaupoissa',
+      elative: 'kaupoista',
+      illative: 'kauppoihin',
+      adessive: 'kaupoilla',
+      ablative: 'kaupoilta',
+      allative: 'kaupoille',
+    },
     usesLocationCases: true,
     category: 'building',
   },
@@ -152,6 +181,15 @@ export const NOUNS: Noun[] = [
       adessive: 'koululla',
       ablative: 'koululta',
       allative: 'koululle',
+    },
+    pluralForms: {
+      nominative: 'koulut',
+      inessive: 'kouluissa',
+      elative: 'kouluista',
+      illative: 'kouluihin',
+      adessive: 'kouluilla',
+      ablative: 'kouluiltä',
+      allative: 'kouluille',
     },
     usesLocationCases: true,
     category: 'building',
@@ -168,6 +206,15 @@ export const NOUNS: Noun[] = [
       ablative: 'kirjastolta',
       allative: 'kirjastolle',
     },
+    pluralForms: {
+      nominative: 'kirjastot',
+      inessive: 'kirjastoissa',
+      elative: 'kirjastoista',
+      illative: 'kirjastoihin',
+      adessive: 'kirjastoilla',
+      ablative: 'kirjastoilta',
+      allative: 'kirjastoille',
+    },
     usesLocationCases: true,
     category: 'building',
   },
@@ -182,6 +229,15 @@ export const NOUNS: Noun[] = [
       adessive: 'ravintolalla',
       ablative: 'ravintolalta',
       allative: 'ravintolalle',
+    },
+    pluralForms: {
+      nominative: 'ravintolat',
+      inessive: 'ravintoloissa',
+      elative: 'ravintoloista',
+      illative: 'ravintoloihin',
+      adessive: 'ravintoloilla',
+      ablative: 'ravintoloilta',
+      allative: 'ravintoloille',
     },
     usesLocationCases: true,
     category: 'building',
@@ -198,6 +254,7 @@ export const NOUNS: Noun[] = [
       ablative: 'Suomelta',
       allative: 'Suomelle',
     },
+    // No plural for country names
     usesLocationCases: true,
     category: 'country',
   },
@@ -213,6 +270,7 @@ export const NOUNS: Noun[] = [
       ablative: 'Helsingiltä',
       allative: 'Helsingille',
     },
+    // No plural for city names
     usesLocationCases: true,
     category: 'city',
   },
@@ -227,6 +285,15 @@ export const NOUNS: Noun[] = [
       adessive: 'sairaalalla',
       ablative: 'sairaalalta',
       allative: 'sairaalalle',
+    },
+    pluralForms: {
+      nominative: 'sairaalat',
+      inessive: 'sairaaloissa',
+      elative: 'sairaaloista',
+      illative: 'sairaaloihin',
+      adessive: 'sairaaloilla',
+      ablative: 'sairaaloilta',
+      allative: 'sairaaloille',
     },
     usesLocationCases: true,
     category: 'building',
@@ -243,6 +310,15 @@ export const NOUNS: Noun[] = [
       ablative: 'toimistolta',
       allative: 'toimistolle',
     },
+    pluralForms: {
+      nominative: 'toimistot',
+      inessive: 'toimistoissa',
+      elative: 'toimistoista',
+      illative: 'toimistoihin',
+      adessive: 'toimistoilla',
+      ablative: 'toimistoilta',
+      allative: 'toimistoille',
+    },
     usesLocationCases: true,
     category: 'building',
   },
@@ -257,6 +333,15 @@ export const NOUNS: Noun[] = [
       adessive: 'keittiöllä',
       ablative: 'keittiöltä',
       allative: 'keittiölle',
+    },
+    pluralForms: {
+      nominative: 'keittiöt',
+      inessive: 'keittiöissä',
+      elative: 'keittiöistä',
+      illative: 'keittiöihin',
+      adessive: 'keittiöillä',
+      ablative: 'keittiöiltä',
+      allative: 'keittiöille',
     },
     usesLocationCases: true,
     category: 'room',
@@ -274,6 +359,15 @@ export const NOUNS: Noun[] = [
       ablative: 'torilta',
       allative: 'torille',
     },
+    pluralForms: {
+      nominative: 'torit',
+      inessive: 'toreissa',
+      elative: 'toreista',
+      illative: 'toreihin',
+      adessive: 'toreilla',
+      ablative: 'toreilta',
+      allative: 'toreille',
+    },
     usesLocationCases: false, // Uses surface cases: torilla, torilta, torille
     category: 'place',
   },
@@ -288,6 +382,15 @@ export const NOUNS: Noun[] = [
       adessive: 'pöydällä',
       ablative: 'pöydältä',
       allative: 'pöydälle',
+    },
+    pluralForms: {
+      nominative: 'pöydät',
+      inessive: 'pöydissä',
+      elative: 'pöydistä',
+      illative: 'pöytiin',
+      adessive: 'pöydillä',
+      ablative: 'pöydiltä',
+      allative: 'pöydille',
     },
     usesLocationCases: false,
     category: 'furniture',
@@ -304,6 +407,15 @@ export const NOUNS: Noun[] = [
       ablative: 'tuolilta',
       allative: 'tuolille',
     },
+    pluralForms: {
+      nominative: 'tuolit',
+      inessive: 'tuoleissa',
+      elative: 'tuoleista',
+      illative: 'tuoleihin',
+      adessive: 'tuoleilla',
+      ablative: 'tuoleilta',
+      allative: 'tuoleille',
+    },
     usesLocationCases: false,
     category: 'furniture',
   },
@@ -318,6 +430,15 @@ export const NOUNS: Noun[] = [
       adessive: 'lattialla',
       ablative: 'lattialta',
       allative: 'lattialle',
+    },
+    pluralForms: {
+      nominative: 'lattiat',
+      inessive: 'lattioissa',
+      elative: 'lattioista',
+      illative: 'lattioihin',
+      adessive: 'lattioilla',
+      ablative: 'lattioilta',
+      allative: 'lattioille',
     },
     usesLocationCases: false,
     category: 'surface',
@@ -334,6 +455,15 @@ export const NOUNS: Noun[] = [
       ablative: 'kadulta',
       allative: 'kadulle',
     },
+    pluralForms: {
+      nominative: 'kadut',
+      inessive: 'kaduissa',
+      elative: 'kaduista',
+      illative: 'katuihin',
+      adessive: 'kaduilla',
+      ablative: 'kaduilta',
+      allative: 'kaduille',
+    },
     usesLocationCases: false,
     category: 'place',
   },
@@ -348,6 +478,15 @@ export const NOUNS: Noun[] = [
       adessive: 'asemalla',
       ablative: 'asemalta',
       allative: 'asemalle',
+    },
+    pluralForms: {
+      nominative: 'asemat',
+      inessive: 'asemissa',
+      elative: 'asemista',
+      illative: 'asemiin',
+      adessive: 'asemilla',
+      ablative: 'asemilta',
+      allative: 'asemille',
     },
     usesLocationCases: false, // Uses surface: asemalla (at the station)
     category: 'place',
@@ -364,6 +503,15 @@ export const NOUNS: Noun[] = [
       ablative: 'postilta',
       allative: 'postille',
     },
+    pluralForms: {
+      nominative: 'postit',
+      inessive: 'posteissa',
+      elative: 'posteista',
+      illative: 'posteihin',
+      adessive: 'posteilla',
+      ablative: 'posteilta',
+      allative: 'posteille',
+    },
     usesLocationCases: false, // postilla = at the post office
     category: 'place',
   },
@@ -378,6 +526,15 @@ export const NOUNS: Noun[] = [
       adessive: 'työllä',
       ablative: 'työltä',
       allative: 'työlle',
+    },
+    pluralForms: {
+      nominative: 'työt',
+      inessive: 'töissä',
+      elative: 'töistä',
+      illative: 'töihin',
+      adessive: 'töillä',
+      ablative: 'töiltä',
+      allative: 'töille',
     },
     usesLocationCases: true, // työssä = at work
     category: 'abstract',
@@ -394,6 +551,15 @@ export const NOUNS: Noun[] = [
       ablative: 'sängyltä',
       allative: 'sängylle',
     },
+    pluralForms: {
+      nominative: 'sängyt',
+      inessive: 'sängyissä',
+      elative: 'sängyistä',
+      illative: 'sänkyihin',
+      adessive: 'sängyillä',
+      ablative: 'sängyiltä',
+      allative: 'sängyille',
+    },
     usesLocationCases: false, // sängyllä = on the bed
     category: 'furniture',
   },
@@ -408,6 +574,15 @@ export const NOUNS: Noun[] = [
       adessive: 'maalla',
       ablative: 'maalta',
       allative: 'maalle',
+    },
+    pluralForms: {
+      nominative: 'maat',
+      inessive: 'maissa',
+      elative: 'maista',
+      illative: 'maihin',
+      adessive: 'mailla',
+      ablative: 'mailta',
+      allative: 'maille',
     },
     usesLocationCases: true, // maassa = in the country/ground
     category: 'place',
@@ -525,6 +700,7 @@ export interface CaseSentence {
   // For fill-in-the-blank exercises
   sentenceWithBlank: string;
   hint?: string;
+  isPlural?: boolean; // True for plural sentences
 }
 
 // Location Case Sentences (Inside: -ssa, -sta, -Vn)
@@ -1322,9 +1498,389 @@ export const NEWS_SENTENCES: CaseSentence[] = [
   },
 ];
 
+// Plural Location Case Sentences (Monikko)
+export const PLURAL_LOCATION_SENTENCES: CaseSentence[] = [
+  // INESSIVE PLURAL (-issa/-issä)
+  {
+    id: 'pl-loc-1',
+    finnish: 'Koirat ovat taloissa.',
+    english: 'The dogs are in the houses.',
+    caseUsed: 'inessive',
+    wordInCase: 'taloissa',
+    baseWord: 'talot',
+    category: 'location',
+    difficulty: 'medium',
+    sentenceWithBlank: 'Koirat ovat ___.',
+    hint: 'talot → talo + i + ssa',
+    isPlural: true,
+  },
+  {
+    id: 'pl-loc-2',
+    finnish: 'Lapset ovat kouluissa.',
+    english: 'The children are in the schools.',
+    caseUsed: 'inessive',
+    wordInCase: 'kouluissa',
+    baseWord: 'koulut',
+    category: 'location',
+    difficulty: 'medium',
+    sentenceWithBlank: 'Lapset ovat ___.',
+    hint: 'koulut → koulu + i + ssa',
+    isPlural: true,
+  },
+  {
+    id: 'pl-loc-3',
+    finnish: 'Kirjat ovat kirjastoissa.',
+    english: 'The books are in the libraries.',
+    caseUsed: 'inessive',
+    wordInCase: 'kirjastoissa',
+    baseWord: 'kirjastot',
+    category: 'location',
+    difficulty: 'medium',
+    sentenceWithBlank: 'Kirjat ovat ___.',
+    hint: 'kirjastot → kirjasto + i + ssa',
+    isPlural: true,
+  },
+  {
+    id: 'pl-loc-4',
+    finnish: 'Ihmiset syövät ravintoloissa.',
+    english: 'People eat in the restaurants.',
+    caseUsed: 'inessive',
+    wordInCase: 'ravintoloissa',
+    baseWord: 'ravintolat',
+    category: 'location',
+    difficulty: 'medium',
+    sentenceWithBlank: 'Ihmiset syövät ___.',
+    hint: 'ravintolat → ravintolo + i + ssa',
+    isPlural: true,
+  },
+  {
+    id: 'pl-loc-5',
+    finnish: 'Potilaat ovat sairaaloissa.',
+    english: 'The patients are in the hospitals.',
+    caseUsed: 'inessive',
+    wordInCase: 'sairaaloissa',
+    baseWord: 'sairaalat',
+    category: 'location',
+    difficulty: 'medium',
+    sentenceWithBlank: 'Potilaat ovat ___.',
+    hint: 'sairaalat → sairaalo + i + ssa',
+    isPlural: true,
+  },
+  // ELATIVE PLURAL (-ista/-istä)
+  {
+    id: 'pl-loc-6',
+    finnish: 'Lapset tulevat kouluista.',
+    english: 'The children come from the schools.',
+    caseUsed: 'elative',
+    wordInCase: 'kouluista',
+    baseWord: 'koulut',
+    category: 'location',
+    difficulty: 'medium',
+    sentenceWithBlank: 'Lapset tulevat ___.',
+    hint: 'koulut → koulu + i + sta',
+    isPlural: true,
+  },
+  {
+    id: 'pl-loc-7',
+    finnish: 'Ihmiset tulevat taloista.',
+    english: 'People come from the houses.',
+    caseUsed: 'elative',
+    wordInCase: 'taloista',
+    baseWord: 'talot',
+    category: 'location',
+    difficulty: 'medium',
+    sentenceWithBlank: 'Ihmiset tulevat ___.',
+    hint: 'talot → talo + i + sta',
+    isPlural: true,
+  },
+  {
+    id: 'pl-loc-8',
+    finnish: 'Otan kirjoja kirjastoista.',
+    english: 'I take books from the libraries.',
+    caseUsed: 'elative',
+    wordInCase: 'kirjastoista',
+    baseWord: 'kirjastot',
+    category: 'location',
+    difficulty: 'medium',
+    sentenceWithBlank: 'Otan kirjoja ___.',
+    hint: 'kirjastot → kirjasto + i + sta',
+    isPlural: true,
+  },
+  {
+    id: 'pl-loc-9',
+    finnish: 'Työntekijät tulevat toimistoista.',
+    english: 'The workers come from the offices.',
+    caseUsed: 'elative',
+    wordInCase: 'toimistoista',
+    baseWord: 'toimistot',
+    category: 'location',
+    difficulty: 'medium',
+    sentenceWithBlank: 'Työntekijät tulevat ___.',
+    hint: 'toimistot → toimisto + i + sta',
+    isPlural: true,
+  },
+  // ILLATIVE PLURAL (-ihin/-iin)
+  {
+    id: 'pl-loc-10',
+    finnish: 'Lapset menevät kouluihin.',
+    english: 'The children go to the schools.',
+    caseUsed: 'illative',
+    wordInCase: 'kouluihin',
+    baseWord: 'koulut',
+    category: 'location',
+    difficulty: 'hard',
+    sentenceWithBlank: 'Lapset menevät ___.',
+    hint: 'koulut → koulu + i + hin',
+    isPlural: true,
+  },
+  {
+    id: 'pl-loc-11',
+    finnish: 'Ihmiset menevät taloihin.',
+    english: 'People go into the houses.',
+    caseUsed: 'illative',
+    wordInCase: 'taloihin',
+    baseWord: 'talot',
+    category: 'location',
+    difficulty: 'hard',
+    sentenceWithBlank: 'Ihmiset menevät ___.',
+    hint: 'talot → talo + i + hin',
+    isPlural: true,
+  },
+  {
+    id: 'pl-loc-12',
+    finnish: 'Vien kirjat kirjastoihin.',
+    english: 'I take the books to the libraries.',
+    caseUsed: 'illative',
+    wordInCase: 'kirjastoihin',
+    baseWord: 'kirjastot',
+    category: 'location',
+    difficulty: 'hard',
+    sentenceWithBlank: 'Vien kirjat ___.',
+    hint: 'kirjastot → kirjasto + i + hin',
+    isPlural: true,
+  },
+  {
+    id: 'pl-loc-13',
+    finnish: 'Menemme ravintoloihin illalla.',
+    english: 'We go to the restaurants in the evening.',
+    caseUsed: 'illative',
+    wordInCase: 'ravintoloihin',
+    baseWord: 'ravintolat',
+    category: 'location',
+    difficulty: 'hard',
+    sentenceWithBlank: 'Menemme ___ illalla.',
+    hint: 'ravintolat → ravintolo + i + hin',
+    isPlural: true,
+  },
+];
+
+// Plural Surface Case Sentences (Monikko)
+export const PLURAL_SURFACE_SENTENCES: CaseSentence[] = [
+  // ADESSIVE PLURAL (-illa/-illä)
+  {
+    id: 'pl-sur-1',
+    finnish: 'Kirjat ovat pöydillä.',
+    english: 'The books are on the tables.',
+    caseUsed: 'adessive',
+    wordInCase: 'pöydillä',
+    baseWord: 'pöydät',
+    category: 'surface',
+    difficulty: 'medium',
+    sentenceWithBlank: 'Kirjat ovat ___.',
+    hint: 'pöydät → pöydi + llä',
+    isPlural: true,
+  },
+  {
+    id: 'pl-sur-2',
+    finnish: 'Ihmiset ovat toreilla.',
+    english: 'People are at the markets.',
+    caseUsed: 'adessive',
+    wordInCase: 'toreilla',
+    baseWord: 'torit',
+    category: 'surface',
+    difficulty: 'medium',
+    sentenceWithBlank: 'Ihmiset ovat ___.',
+    hint: 'torit → tore + i + lla',
+    isPlural: true,
+  },
+  {
+    id: 'pl-sur-3',
+    finnish: 'Lapset istuvat tuoleilla.',
+    english: 'The children sit on the chairs.',
+    caseUsed: 'adessive',
+    wordInCase: 'tuoleilla',
+    baseWord: 'tuolit',
+    category: 'surface',
+    difficulty: 'medium',
+    sentenceWithBlank: 'Lapset istuvat ___.',
+    hint: 'tuolit → tuole + i + lla',
+    isPlural: true,
+  },
+  {
+    id: 'pl-sur-4',
+    finnish: 'Autot ovat kaduilla.',
+    english: 'The cars are on the streets.',
+    caseUsed: 'adessive',
+    wordInCase: 'kaduilla',
+    baseWord: 'kadut',
+    category: 'surface',
+    difficulty: 'medium',
+    sentenceWithBlank: 'Autot ovat ___.',
+    hint: 'kadut → kadu + i + lla',
+    isPlural: true,
+  },
+  {
+    id: 'pl-sur-5',
+    finnish: 'Matkustajat odottavat asemilla.',
+    english: 'The passengers wait at the stations.',
+    caseUsed: 'adessive',
+    wordInCase: 'asemilla',
+    baseWord: 'asemat',
+    category: 'surface',
+    difficulty: 'medium',
+    sentenceWithBlank: 'Matkustajat odottavat ___.',
+    hint: 'asemat → asem + i + lla',
+    isPlural: true,
+  },
+  // ABLATIVE PLURAL (-ilta/-iltä)
+  {
+    id: 'pl-sur-6',
+    finnish: 'Otan kirjat pöydiltä.',
+    english: 'I take the books from the tables.',
+    caseUsed: 'ablative',
+    wordInCase: 'pöydiltä',
+    baseWord: 'pöydät',
+    category: 'surface',
+    difficulty: 'medium',
+    sentenceWithBlank: 'Otan kirjat ___.',
+    hint: 'pöydät → pöydi + ltä',
+    isPlural: true,
+  },
+  {
+    id: 'pl-sur-7',
+    finnish: 'Ihmiset tulevat toreilta.',
+    english: 'People come from the markets.',
+    caseUsed: 'ablative',
+    wordInCase: 'toreilta',
+    baseWord: 'torit',
+    category: 'surface',
+    difficulty: 'medium',
+    sentenceWithBlank: 'Ihmiset tulevat ___.',
+    hint: 'torit → tore + i + lta',
+    isPlural: true,
+  },
+  {
+    id: 'pl-sur-8',
+    finnish: 'Lapset nousevat tuoleilta.',
+    english: 'The children get up from the chairs.',
+    caseUsed: 'ablative',
+    wordInCase: 'tuoleilta',
+    baseWord: 'tuolit',
+    category: 'surface',
+    difficulty: 'medium',
+    sentenceWithBlank: 'Lapset nousevat ___.',
+    hint: 'tuolit → tuole + i + lta',
+    isPlural: true,
+  },
+  {
+    id: 'pl-sur-9',
+    finnish: 'Junat lähtevät asemilta.',
+    english: 'The trains leave from the stations.',
+    caseUsed: 'ablative',
+    wordInCase: 'asemilta',
+    baseWord: 'asemat',
+    category: 'surface',
+    difficulty: 'medium',
+    sentenceWithBlank: 'Junat lähtevät ___.',
+    hint: 'asemat → asem + i + lta',
+    isPlural: true,
+  },
+  // ALLATIVE PLURAL (-ille)
+  {
+    id: 'pl-sur-10',
+    finnish: 'Laitan kirjat pöydille.',
+    english: 'I put the books on the tables.',
+    caseUsed: 'allative',
+    wordInCase: 'pöydille',
+    baseWord: 'pöydät',
+    category: 'surface',
+    difficulty: 'medium',
+    sentenceWithBlank: 'Laitan kirjat ___.',
+    hint: 'pöydät → pöydi + lle',
+    isPlural: true,
+  },
+  {
+    id: 'pl-sur-11',
+    finnish: 'Ihmiset menevät toreille.',
+    english: 'People go to the markets.',
+    caseUsed: 'allative',
+    wordInCase: 'toreille',
+    baseWord: 'torit',
+    category: 'surface',
+    difficulty: 'medium',
+    sentenceWithBlank: 'Ihmiset menevät ___.',
+    hint: 'torit → tore + i + lle',
+    isPlural: true,
+  },
+  {
+    id: 'pl-sur-12',
+    finnish: 'Lapset istuvat tuoleille.',
+    english: 'The children sit down on the chairs.',
+    caseUsed: 'allative',
+    wordInCase: 'tuoleille',
+    baseWord: 'tuolit',
+    category: 'surface',
+    difficulty: 'medium',
+    sentenceWithBlank: 'Lapset istuvat ___.',
+    hint: 'tuolit → tuole + i + lle',
+    isPlural: true,
+  },
+  {
+    id: 'pl-sur-13',
+    finnish: 'Menemme kaduille kävelylle.',
+    english: 'We go to the streets for a walk.',
+    caseUsed: 'allative',
+    wordInCase: 'kaduille',
+    baseWord: 'kadut',
+    category: 'surface',
+    difficulty: 'medium',
+    sentenceWithBlank: 'Menemme ___ kävelylle.',
+    hint: 'kadut → kadu + i + lle',
+    isPlural: true,
+  },
+  {
+    id: 'pl-sur-14',
+    finnish: 'Junat saapuvat asemille.',
+    english: 'The trains arrive at the stations.',
+    caseUsed: 'allative',
+    wordInCase: 'asemille',
+    baseWord: 'asemat',
+    category: 'surface',
+    difficulty: 'medium',
+    sentenceWithBlank: 'Junat saapuvat ___.',
+    hint: 'asemat → asem + i + lle',
+    isPlural: true,
+  },
+];
+
 // Combine all sentences
 export function getAllSentences(): CaseSentence[] {
   return [...LOCATION_SENTENCES, ...SURFACE_SENTENCES, ...PRONOUN_SENTENCES, ...NEWS_SENTENCES];
+}
+
+// Get only singular sentences (exclude plural)
+export function getSingularSentences(): CaseSentence[] {
+  return getAllSentences().filter(s => !s.isPlural);
+}
+
+// Get only plural sentences
+export function getPluralSentences(): CaseSentence[] {
+  return [...PLURAL_LOCATION_SENTENCES, ...PLURAL_SURFACE_SENTENCES];
+}
+
+// Get all sentences including plural
+export function getAllSentencesWithPlural(): CaseSentence[] {
+  return [...getAllSentences(), ...getPluralSentences()];
 }
 
 export function getSentencesByCase(caseType: CaseType): CaseSentence[] {

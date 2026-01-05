@@ -2,16 +2,8 @@ import { useReducer, useEffect, useCallback, useState, useRef } from 'react';
 import type {
   GameState,
   PlayerState,
-  SessionState,
-  VerbSessionState,
   FeedbackData,
-  GameMode,
   TimeRecord,
-  VerbLevel,
-  Person,
-  Polarity,
-  ConsonantGradationQuestion,
-  ConsonantGradationSessionState,
   VocabularySessionState,
   VocabularyWordState,
   CasesSessionState,
@@ -24,33 +16,42 @@ import type {
   PartitiveRule,
   PartitiveSessionState,
   PartitiveWordState,
+  PluralRule,
+  PluralSessionState,
+  PluralWordState,
+  GenitiveRule,
+  GenitiveSessionState,
+  GenitiveWordState,
+  StemRule,
+  StemSessionState,
+  StemWordState,
   LyricsSubMode,
   LyricsSessionState,
-  LyricsWordState,
-  LyricsLineState,
   CurrentLyricsItem,
 } from '../types';
-import { SONGS, getSongById, getSongWords, getUniqueSongLines, type Song, type SongWord, type SongLine } from '../data/songs';
-import { verbs, verbTypeInfo, negativeInfo, getRandomSentence, getRandomImperfectSentence, persons, getVerbsForLevels } from '../data/verbs';
-import { getAllRules, createPracticeQuestions, type GradationRule } from '../data/consonantGradation';
+import { SONGS, getSongById, getSongWords, getUniqueSongLines } from '../data/songs';
+import { verbs, verbTypeInfo, persons } from '../data/verbs';
 import { saveToCSV, loadFromCSV } from '../utils/csvDatabase';
 import { getWordsForTavoites, getAllTavoites, getWordCountForTavoites } from '../data/tavoiteVocabulary';
 import { getAllSM2Chapters, getSM2WordCountForChapters, getWordsForSM2Cycles, getSM2WordCountForCycles, getAllSM2Cycles, getSM2CyclesForChapter } from '../data/suomenMestari2';
-import { getSentencesByCategory, CASES, CASE_GROUPS, getCaseEndingExplanation, type CaseSentence } from '../data/finnishCases';
+import { getSentencesByCategory, getPluralSentences, CASES, CASE_GROUPS, getCaseEndingExplanation, type CaseSentence } from '../data/finnishCases';
 import { PARTITIVE_RULES, getWordsForRules, getRuleInfo } from '../data/partitiveData';
+import { PLURAL_RULES, getWordsForPluralRules, getPluralRuleInfo } from '../data/pluralData';
+import { GENITIVE_RULES, getWordsForGenitiveRules, getGenitiveRuleInfo } from '../data/genitiveData';
+import { STEM_RULES, getWordsForStemRules, getStemRuleInfo } from '../data/stemData';
 
 const STORAGE_KEY = 'finnish-verb-arena-v4';
 
-const PERSONS: Person[] = ['minä', 'sinä', 'hän', 'me', 'te', 'he'];
-
 type GameAction =
-  | { type: 'START_SESSION'; mode: GameMode; levels: VerbLevel[] }
-  | { type: 'START_VERB_TYPE_SESSION'; tense: 'present' | 'imperfect'; types: number[] }
+  | { type: 'START_VERB_TYPE_SESSION'; tense: 'present' | 'negative' | 'imperfect' | 'imperfectNegative'; types: number[] }
   | { type: 'START_VOCABULARY_SESSION'; mode: 'vocabulary-recall' | 'vocabulary-active-recall'; tavoites: number[]; source: 'kurssin-arvostelu' }
   | { type: 'START_SM2_SESSION'; mode: 'vocabulary-recall' | 'vocabulary-active-recall'; cycleIds: string[] }
   | { type: 'START_SM2_MEMORISE_SESSION'; cycleIds: string[] }
-  | { type: 'START_CASES_SESSION'; categories: CaseCategory[] }
-  | { type: 'START_PARTITIVE_SESSION'; rules: PartitiveRule[] }
+  | { type: 'START_CASES_SESSION'; categories: CaseCategory[]; isPlural?: boolean }
+  | { type: 'START_PARTITIVE_SESSION'; rules: PartitiveRule[]; isPlural?: boolean }
+  | { type: 'START_PLURAL_SESSION'; rules: PluralRule[] }
+  | { type: 'START_GENITIVE_SESSION'; rules: GenitiveRule[]; isPlural?: boolean }
+  | { type: 'START_STEM_SESSION'; rules: StemRule[] }
   | { type: 'START_LYRICS_SESSION'; songId: string; subMode: LyricsSubMode }
   | { type: 'SUBMIT_ANSWER'; answer: string }
   | { type: 'NEXT_VERB' }
@@ -60,11 +61,6 @@ type GameAction =
 
 function getInitialPlayerState(): PlayerState {
   return {
-    levelProgress: [
-      { level: 'A1', recallCompleted: true, activeRecallCompleted: true, conjugationCompleted: false },
-      { level: 'A2', recallCompleted: true, activeRecallCompleted: true, conjugationCompleted: false },
-      { level: 'B1', recallCompleted: false, activeRecallCompleted: false, conjugationCompleted: false },
-    ],
     bestTimes: [],
     tavoiteProgress: [],
     sm2Progress: [],
@@ -77,13 +73,15 @@ function loadPlayerState(): PlayerState {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed.levelProgress) && Array.isArray(parsed.bestTimes)) {
-        // Ensure conjugationCompleted exists
-        parsed.levelProgress = parsed.levelProgress.map((lp: any) => ({
-          ...lp,
-          conjugationCompleted: lp.conjugationCompleted ?? false,
-        }));
-        return parsed;
+      if (Array.isArray(parsed.bestTimes)) {
+        return {
+          bestTimes: parsed.bestTimes,
+          tavoiteProgress: parsed.tavoiteProgress || [],
+          sm2Progress: parsed.sm2Progress || [],
+          sm2CycleProgress: parsed.sm2CycleProgress || [],
+          casesProgress: parsed.casesProgress,
+          lyricsProgress: parsed.lyricsProgress,
+        };
       }
     }
   } catch {
@@ -100,72 +98,26 @@ function savePlayerState(state: PlayerState): void {
   }
 }
 
-function createSession(mode: GameMode, levels: VerbLevel[]): SessionState {
-  const verbsForSession = getVerbsForLevels(levels);
-  
-  const shuffledVerbs = [...verbsForSession]
-    .sort(() => Math.random() - 0.5)
-    .map((v) => ({
-      infinitive: v.infinitive,
-      correctCount: 0,
-      wrongCount: 0,
-      eliminated: false,
-    }));
-
-  return {
-    mode,
-    verbs: shuffledVerbs,
-    currentVerbIndex: 0,
-    startTime: null,
-    endTime: null,
-    wrongCount: 0,
-    isComplete: false,
-  };
-}
-
-function getNextActiveVerbIndex(session: SessionState, startFrom: number): number {
-  const { verbs } = session;
-  
-  for (let i = 0; i < verbs.length; i++) {
-    const idx = (startFrom + i) % verbs.length;
-    if (!verbs[idx].eliminated) {
-      return idx;
-    }
-  }
-  
-  return -1;
-}
-
-function getActiveVerbCount(session: SessionState): number {
-  return session.verbs.filter((v) => !v.eliminated).length;
-}
-
-function getRandomPerson(): Person {
-  return PERSONS[Math.floor(Math.random() * PERSONS.length)];
-}
-
-function getRandomPolarity(): Polarity {
-  return Math.random() > 0.5 ? 'positive' : 'negative';
-}
-
 function getInitialState(): GameState {
   return {
     mode: 'menu',
     player: loadPlayerState(),
-    session: null,
-    currentVerb: null,
     feedback: null,
-    currentPerson: undefined,
-    currentPolarity: undefined,
-    currentSentence: undefined,
-    currentGradationQuestion: undefined,
-    gradationSession: undefined,
-    questions: [],
     vocabularySession: undefined,
     currentVocabularyWord: undefined,
     casesSession: undefined,
     currentCaseSentence: undefined,
     verbTypeSession: undefined,
+    partitiveSession: undefined,
+    currentPartitiveWord: undefined,
+    pluralSession: undefined,
+    currentPluralWord: undefined,
+    genitiveSession: undefined,
+    currentGenitiveWord: undefined,
+    stemSession: undefined,
+    currentStemWord: undefined,
+    lyricsSession: undefined,
+    currentLyricsItem: undefined,
   };
 }
 
@@ -435,12 +387,23 @@ function getVocabularyExpectedAnswer(mode: 'vocabulary-recall' | 'vocabulary-act
 }
 
 // Cases Session Helpers
-function createCasesSession(categories: CaseCategory[]): CasesSessionState {
-  // Get sentences based on selected categories
+function createCasesSession(categories: CaseCategory[], isPlural?: boolean): CasesSessionState {
+  // Get sentences based on selected categories or plural sentences
   let sentences: CaseSentence[] = [];
   
-  for (const category of categories) {
-    sentences = [...sentences, ...getSentencesByCategory(category)];
+  if (isPlural) {
+    // For plural mode, get all plural sentences and filter by case type if specific cases are selected
+    const pluralSentences = getPluralSentences();
+    if (categories.length === 0 || categories.includes('location') || categories.includes('surface')) {
+      sentences = pluralSentences;
+    } else {
+      // Filter by specific case types
+      sentences = pluralSentences.filter(s => categories.includes(s.caseUsed as CaseCategory));
+    }
+  } else {
+    for (const category of categories) {
+      sentences = [...sentences, ...getSentencesByCategory(category)];
+    }
   }
   
   // Remove duplicates by id
@@ -459,13 +422,14 @@ function createCasesSession(categories: CaseCategory[]): CasesSessionState {
       category: s.category,
       sentenceWithBlank: s.sentenceWithBlank,
       hint: s.hint,
+      isPlural: s.isPlural,
       correctCount: 0,
       wrongCount: 0,
       eliminated: false,
     }));
 
   return {
-    mode: 'cases-fill-blank',
+    mode: isPlural ? 'cases-fill-blank-plural' : 'cases-fill-blank',
     selectedCategories: categories,
     sentences: shuffledSentences,
     currentSentenceIndex: 0,
@@ -512,50 +476,6 @@ function getCaseFeedbackInfo(sentence: CaseSentenceState): { caseInfo: string; r
   };
 }
 
-function checkAnswer(mode: GameMode, verb: ReturnType<typeof getVerbsForLevels>[0], answer: string, person?: Person, polarity?: Polarity): boolean {
-  const normalizedAnswer = answer.trim().toLowerCase();
-  
-  if (mode === 'recall') {
-    const validAnswers = [verb.translation, ...(verb.synonyms || [])];
-    return validAnswers.some((a) => a.toLowerCase() === normalizedAnswer);
-  } else if (mode === 'active-recall') {
-    return verb.infinitive.toLowerCase() === normalizedAnswer;
-  } else if (mode === 'conjugation' && verb.forms && person && polarity) {
-    const expected = polarity === 'positive' 
-      ? verb.forms.present[person] 
-      : verb.forms.negative[person];
-    return expected.toLowerCase() === normalizedAnswer;
-  } else if (mode === 'imperfect' && verb.forms && person) {
-    // Imperfect mode only uses positive forms
-    const expected = verb.forms.imperfect?.[person];
-    return expected?.toLowerCase() === normalizedAnswer;
-  }
-  return false;
-}
-
-function getExpectedAnswer(mode: GameMode, verb: ReturnType<typeof getVerbsForLevels>[0], person?: Person, polarity?: Polarity): string {
-  if (mode === 'recall') {
-    return verb.translation;
-  } else if (mode === 'active-recall') {
-    return verb.infinitive;
-  } else if (mode === 'conjugation' && verb.forms && person && polarity) {
-    return polarity === 'positive' 
-      ? verb.forms.present[person] 
-      : verb.forms.negative[person];
-  } else if (mode === 'imperfect' && verb.forms && person) {
-    // Imperfect mode only uses positive forms
-    return verb.forms.imperfect?.[person] || '';
-  }
-  return '';
-}
-
-function getSimilarVerbs(verbType: number, currentVerb: string, allVerbs: ReturnType<typeof getVerbsForLevels>): string[] {
-  return allVerbs
-    .filter(v => v.type === verbType && v.infinitive !== currentVerb)
-    .slice(0, 4)
-    .map(v => v.infinitive);
-}
-
 export function formatTime(ms: number): string {
   const seconds = Math.floor(ms / 1000);
   const minutes = Math.floor(seconds / 60);
@@ -564,10 +484,10 @@ export function formatTime(ms: number): string {
 }
 
 function downloadCSV(records: TimeRecord[]): void {
-  const headers = ['Mode', 'Levels', 'Time (seconds)', 'Time (formatted)', 'Accuracy %', 'Verb Count', 'Date'];
+  const headers = ['Mode', 'Verb Types', 'Time (seconds)', 'Time (formatted)', 'Accuracy %', 'Verb Count', 'Date'];
   const rows = records.map((r) => [
     r.mode,
-    r.levels.join('+'),
+    r.verbTypes?.join('+') || '-',
     Math.round(r.timeMs / 1000),
     formatTime(r.timeMs),
     r.accuracy,
@@ -585,16 +505,13 @@ function downloadCSV(records: TimeRecord[]): void {
   URL.revokeObjectURL(url);
 }
 
-let currentSessionLevels: VerbLevel[] = [];
-
 // Verb Type Arena Helpers
-function createVerbTypeSession(tense: 'present' | 'imperfect', types: number[]): VerbTypeSessionState {
+function createVerbTypeSession(tense: 'present' | 'negative' | 'imperfect' | 'imperfectNegative', types: number[]): VerbTypeSessionState {
   const verbsForTypes = verbs.filter(v => types.includes(v.type) && v.forms);
   const shuffledVerbs = [...verbsForTypes].sort(() => Math.random() - 0.5);
   
   const verbStates: VerbTypeVerbState[] = shuffledVerbs.map(verb => {
-    const formsKey = tense === 'present' ? 'present' : 'imperfect';
-    const verbForms = verb.forms?.[formsKey];
+    const verbForms = verb.forms?.[tense];
     
     if (!verbForms) {
       return {
@@ -626,8 +543,16 @@ function createVerbTypeSession(tense: 'present' | 'imperfect', types: number[]):
     };
   }).filter(v => v.forms.length > 0); // Filter out verbs without forms
   
+  // Map tense to game mode
+  const modeMap: Record<typeof tense, VerbTypeSessionState['mode']> = {
+    present: 'verb-type-present',
+    negative: 'verb-type-negative',
+    imperfect: 'verb-type-imperfect',
+    imperfectNegative: 'verb-type-imperfect-negative',
+  };
+  
   return {
-    mode: tense === 'present' ? 'verb-type-present' : 'verb-type-imperfect',
+    mode: modeMap[tense],
     selectedTypes: types,
     verbs: verbStates,
     currentVerbIndex: 0,
@@ -642,151 +567,28 @@ function getVerbsByTypes(types: number[]): typeof verbs {
   return verbs.filter(v => types.includes(v.type));
 }
 
-// Consonant Gradation Helpers
-function createGradationSession(): ConsonantGradationSessionState {
-  return {
-    currentRuleIndex: 0,
-    currentStage: 'rule-confirm',
-    currentQuestionIndex: 0,
-    startTime: Date.now(),
-    endTime: null,
-    wrongCount: 0,
-    isComplete: false,
-  };
-}
-
-function getCurrentRule(state: GameState): GradationRule | null {
-  if (!state.gradationSession) return null;
-  const allRules = getAllRules();
-  return allRules[state.gradationSession.currentRuleIndex] || null;
-}
-
-function getCurrentPracticeQuestions(state: GameState): ConsonantGradationQuestion[] {
-  const rule = getCurrentRule(state);
-  if (!rule || !state.gradationSession) return [];
-  
-  const allQuestions = createPracticeQuestions(rule);
-  const stage = state.gradationSession.currentStage;
-  
-  if (stage === 'noun-practice') {
-    return allQuestions.filter(q => q.category === 'noun');
-  } else if (stage === 'verb-practice') {
-    return allQuestions.filter(q => q.category === 'verb');
-  }
-  
-  return [];
-}
-
-function getCurrentQuestion(state: GameState): ConsonantGradationQuestion | null {
-  const questions = getCurrentPracticeQuestions(state);
-  if (!state.gradationSession || questions.length === 0) return null;
-  return questions[state.gradationSession.currentQuestionIndex] || null;
-}
-
-function checkGradationAnswer(question: ConsonantGradationQuestion, answer: string): boolean {
-  const normalizedAnswer = answer.trim().toLowerCase();
-  
-  if (question.type === 'true-false') {
-    const userBool = normalizedAnswer === 'true' || normalizedAnswer === 't' || normalizedAnswer === 'yes' || normalizedAnswer === 'y';
-    return userBool === question.correctAnswer;
-  } else if (question.type === 'fill-blank') {
-    const expected = (question.expectedAnswer || '').toLowerCase();
-    return normalizedAnswer === expected;
-  }
-  
-  return false;
-}
-
-function getGradationExpectedAnswer(question: ConsonantGradationQuestion): string {
-  if (question.type === 'true-false') {
-    return question.correctAnswer ? 'True' : 'False';
-  } else if (question.type === 'fill-blank') {
-    return question.expectedAnswer || '';
-  }
-  return '';
-}
-
 function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
-    case 'START_SESSION': {
-      currentSessionLevels = action.levels;
-      
-      // Handle consonant gradation mode separately
-      if (action.mode === 'consonant-gradation') {
-        const gradationSession = createGradationSession();
-        return {
-          ...state,
-          mode: action.mode,
-          session: null,
-          currentVerb: null,
-          feedback: null,
-          currentPerson: undefined,
-          currentPolarity: undefined,
-          currentSentence: undefined,
-          currentGradationQuestion: undefined, // Will be set based on stage
-          gradationSession,
-        };
-      }
-      
-      // Regular verb modes
-      const session = createSession(action.mode, action.levels);
-      const verbsForSession = getVerbsForLevels(action.levels);
-      const firstVerbIndex = getNextActiveVerbIndex(session, 0);
-      const currentVerb = verbsForSession.find(
-        (v) => v.infinitive === session.verbs[firstVerbIndex].infinitive
-      )!;
-
-      // For conjugation mode, set random person and polarity
-      // For imperfect mode, set random person but always positive polarity
-      const isConjugation = action.mode === 'conjugation';
-      const isImperfect = action.mode === 'imperfect';
-      const person = (isConjugation || isImperfect) ? getRandomPerson() : undefined;
-      const polarity = isConjugation ? getRandomPolarity() : isImperfect ? 'positive' : undefined;
-      const sentence = isConjugation && person && polarity 
-        ? getRandomSentence(person, polarity)
-        : isImperfect && person
-        ? getRandomImperfectSentence(person, 'positive')
-        : undefined;
-
-      return {
-        ...state,
-        mode: action.mode,
-        session: {
-          ...session,
-          currentVerbIndex: firstVerbIndex,
-          startTime: Date.now(),
-        },
-        currentVerb,
-        feedback: null,
-        currentPerson: person,
-        currentPolarity: polarity,
-        currentSentence: sentence,
-        currentGradationQuestion: undefined,
-        gradationSession: undefined,
-        vocabularySession: undefined,
-        currentVocabularyWord: undefined,
-      };
-    }
-
     case 'START_VERB_TYPE_SESSION': {
       const verbTypeSession = createVerbTypeSession(action.tense, action.types);
       
       return {
         ...state,
         mode: verbTypeSession.mode,
-        session: null,
-        currentVerb: null,
         feedback: null,
-        currentPerson: undefined,
-        currentPolarity: undefined,
-        currentSentence: undefined,
-        currentGradationQuestion: undefined,
-        gradationSession: undefined,
         vocabularySession: undefined,
         currentVocabularyWord: undefined,
         casesSession: undefined,
         currentCaseSentence: undefined,
         verbTypeSession,
+        partitiveSession: undefined,
+        currentPartitiveWord: undefined,
+        pluralSession: undefined,
+        currentPluralWord: undefined,
+        genitiveSession: undefined,
+        currentGenitiveWord: undefined,
+        lyricsSession: undefined,
+        currentLyricsItem: undefined,
       };
     }
 
@@ -798,14 +600,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         mode: action.mode,
-        session: null,
-        currentVerb: null,
         feedback: null,
-        currentPerson: undefined,
-        currentPolarity: undefined,
-        currentSentence: undefined,
-        currentGradationQuestion: undefined,
-        gradationSession: undefined,
         vocabularySession: {
           ...vocabularySession,
           currentWordIndex: firstWordIndex,
@@ -816,6 +611,15 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         } : undefined,
         casesSession: undefined,
         currentCaseSentence: undefined,
+        verbTypeSession: undefined,
+        partitiveSession: undefined,
+        currentPartitiveWord: undefined,
+        pluralSession: undefined,
+        currentPluralWord: undefined,
+        genitiveSession: undefined,
+        currentGenitiveWord: undefined,
+        lyricsSession: undefined,
+        currentLyricsItem: undefined,
       };
     }
 
@@ -827,14 +631,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         mode: action.mode,
-        session: null,
-        currentVerb: null,
         feedback: null,
-        currentPerson: undefined,
-        currentPolarity: undefined,
-        currentSentence: undefined,
-        currentGradationQuestion: undefined,
-        gradationSession: undefined,
         vocabularySession: {
           ...vocabularySession,
           currentWordIndex: firstWordIndex,
@@ -845,6 +642,15 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         } : undefined,
         casesSession: undefined,
         currentCaseSentence: undefined,
+        verbTypeSession: undefined,
+        partitiveSession: undefined,
+        currentPartitiveWord: undefined,
+        pluralSession: undefined,
+        currentPluralWord: undefined,
+        genitiveSession: undefined,
+        currentGenitiveWord: undefined,
+        lyricsSession: undefined,
+        currentLyricsItem: undefined,
       };
     }
 
@@ -856,14 +662,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         mode: 'vocabulary-memorise',
-        session: null,
-        currentVerb: null,
         feedback: null,
-        currentPerson: undefined,
-        currentPolarity: undefined,
-        currentSentence: undefined,
-        currentGradationQuestion: undefined,
-        gradationSession: undefined,
         vocabularySession: {
           ...vocabularySession,
           currentWordIndex: firstWordIndex,
@@ -874,25 +673,27 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         } : undefined,
         casesSession: undefined,
         currentCaseSentence: undefined,
+        verbTypeSession: undefined,
+        partitiveSession: undefined,
+        currentPartitiveWord: undefined,
+        pluralSession: undefined,
+        currentPluralWord: undefined,
+        genitiveSession: undefined,
+        currentGenitiveWord: undefined,
+        lyricsSession: undefined,
+        currentLyricsItem: undefined,
       };
     }
 
     case 'START_CASES_SESSION': {
-      const casesSession = createCasesSession(action.categories);
+      const casesSession = createCasesSession(action.categories, action.isPlural);
       const firstSentenceIndex = getNextActiveSentenceIndex(casesSession, 0);
       const firstSentence = casesSession.sentences[firstSentenceIndex];
       
       return {
         ...state,
-        mode: 'cases-fill-blank',
-        session: null,
-        currentVerb: null,
+        mode: action.isPlural ? 'cases-fill-blank-plural' : 'cases-fill-blank',
         feedback: null,
-        currentPerson: undefined,
-        currentPolarity: undefined,
-        currentSentence: undefined,
-        currentGradationQuestion: undefined,
-        gradationSession: undefined,
         vocabularySession: undefined,
         currentVocabularyWord: undefined,
         casesSession: {
@@ -908,20 +709,89 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           baseWord: firstSentence.baseWord,
           sentenceWithBlank: firstSentence.sentenceWithBlank,
           hint: firstSentence.hint,
+          isPlural: firstSentence.isPlural,
         } : undefined,
+        verbTypeSession: undefined,
+        partitiveSession: undefined,
+        currentPartitiveWord: undefined,
+        pluralSession: undefined,
+        currentPluralWord: undefined,
+        genitiveSession: undefined,
+        currentGenitiveWord: undefined,
+        lyricsSession: undefined,
+        currentLyricsItem: undefined,
       };
     }
 
     case 'START_PARTITIVE_SESSION': {
       const wordsForRules = getWordsForRules(action.rules);
       const shuffledWords = [...wordsForRules].sort(() => Math.random() - 0.5);
+      const isPlural = action.isPlural || false;
       
       const partitiveSession: PartitiveSessionState = {
-        mode: 'partitive',
+        mode: isPlural ? 'partitive-plural' : 'partitive',
         selectedRules: action.rules,
         words: shuffledWords.map(w => ({
           nominative: w.nominative,
           partitive: w.partitive,
+          nominativePlural: w.nominativePlural,
+          partitivePlural: w.partitivePlural,
+          translation: w.translation,
+          rule: w.rule,
+          hint: w.hint,
+          hintPlural: w.hintPlural,
+          correctCount: 0,
+          wrongCount: 0,
+          eliminated: false,
+        })),
+        currentWordIndex: 0,
+        startTime: Date.now(),
+        endTime: null,
+        wrongCount: 0,
+        isComplete: false,
+      };
+      
+      const firstWord = shuffledWords[0];
+      
+      return {
+        ...state,
+        mode: isPlural ? 'partitive-plural' : 'partitive',
+        feedback: null,
+        vocabularySession: undefined,
+        currentVocabularyWord: undefined,
+        casesSession: undefined,
+        currentCaseSentence: undefined,
+        verbTypeSession: undefined,
+        partitiveSession,
+        currentPartitiveWord: firstWord ? {
+          nominative: firstWord.nominative,
+          partitive: firstWord.partitive,
+          nominativePlural: firstWord.nominativePlural,
+          partitivePlural: firstWord.partitivePlural,
+          translation: firstWord.translation,
+          rule: firstWord.rule,
+          hint: isPlural ? firstWord.hintPlural : firstWord.hint,
+          hintPlural: firstWord.hintPlural,
+        } : undefined,
+        pluralSession: undefined,
+        currentPluralWord: undefined,
+        genitiveSession: undefined,
+        currentGenitiveWord: undefined,
+        lyricsSession: undefined,
+        currentLyricsItem: undefined,
+      };
+    }
+
+    case 'START_PLURAL_SESSION': {
+      const wordsForRules = getWordsForPluralRules(action.rules);
+      const shuffledWords = [...wordsForRules].sort(() => Math.random() - 0.5);
+      
+      const pluralSession: PluralSessionState = {
+        mode: 'plural',
+        selectedRules: action.rules,
+        words: shuffledWords.map(w => ({
+          nominative: w.nominative,
+          nominativePlural: w.nominativePlural,
           translation: w.translation,
           rule: w.rule,
           hint: w.hint,
@@ -940,28 +810,142 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       
       return {
         ...state,
-        mode: 'partitive',
-        session: null,
-        currentVerb: null,
+        mode: 'plural',
         feedback: null,
-        currentPerson: undefined,
-        currentPolarity: undefined,
-        currentSentence: undefined,
-        currentGradationQuestion: undefined,
-        gradationSession: undefined,
         vocabularySession: undefined,
         currentVocabularyWord: undefined,
         casesSession: undefined,
         currentCaseSentence: undefined,
         verbTypeSession: undefined,
-        partitiveSession,
-        currentPartitiveWord: firstWord ? {
+        partitiveSession: undefined,
+        currentPartitiveWord: undefined,
+        pluralSession,
+        currentPluralWord: firstWord ? {
           nominative: firstWord.nominative,
-          partitive: firstWord.partitive,
+          nominativePlural: firstWord.nominativePlural,
           translation: firstWord.translation,
           rule: firstWord.rule,
           hint: firstWord.hint,
         } : undefined,
+        genitiveSession: undefined,
+        currentGenitiveWord: undefined,
+        lyricsSession: undefined,
+        currentLyricsItem: undefined,
+      };
+    }
+
+    case 'START_GENITIVE_SESSION': {
+      const wordsForRules = getWordsForGenitiveRules(action.rules);
+      const shuffledWords = [...wordsForRules].sort(() => Math.random() - 0.5);
+      const isPlural = action.isPlural || false;
+      
+      const genitiveSession: GenitiveSessionState = {
+        mode: isPlural ? 'genitive-plural' : 'genitive',
+        selectedRules: action.rules,
+        words: shuffledWords.map(w => ({
+          nominative: w.nominative,
+          genitiveSingular: w.genitiveSingular,
+          nominativePlural: w.nominativePlural,
+          genitivePlural: w.genitivePlural,
+          translation: w.translation,
+          rule: w.rule,
+          hint: w.hint,
+          correctCount: 0,
+          wrongCount: 0,
+          eliminated: false,
+        })),
+        currentWordIndex: 0,
+        startTime: Date.now(),
+        endTime: null,
+        wrongCount: 0,
+        isComplete: false,
+      };
+      
+      const firstWord = shuffledWords[0];
+      
+      return {
+        ...state,
+        mode: isPlural ? 'genitive-plural' : 'genitive',
+        feedback: null,
+        vocabularySession: undefined,
+        currentVocabularyWord: undefined,
+        casesSession: undefined,
+        currentCaseSentence: undefined,
+        verbTypeSession: undefined,
+        partitiveSession: undefined,
+        currentPartitiveWord: undefined,
+        pluralSession: undefined,
+        currentPluralWord: undefined,
+        genitiveSession,
+        currentGenitiveWord: firstWord ? {
+          nominative: firstWord.nominative,
+          genitiveSingular: firstWord.genitiveSingular,
+          nominativePlural: firstWord.nominativePlural,
+          genitivePlural: firstWord.genitivePlural,
+          translation: firstWord.translation,
+          rule: firstWord.rule,
+          hint: firstWord.hint,
+        } : undefined,
+        stemSession: undefined,
+        currentStemWord: undefined,
+        lyricsSession: undefined,
+        currentLyricsItem: undefined,
+      };
+    }
+
+    case 'START_STEM_SESSION': {
+      const wordsForRules = getWordsForStemRules(action.rules);
+      const shuffledWords = [...wordsForRules].sort(() => Math.random() - 0.5);
+      
+      const stemSession: StemSessionState = {
+        mode: 'stem',
+        selectedRules: action.rules,
+        words: shuffledWords.map(w => ({
+          nominative: w.nominative,
+          stem: w.stem,
+          translation: w.translation,
+          rule: w.rule,
+          hint: w.hint,
+          genitive: w.genitive,
+          correctCount: 0,
+          wrongCount: 0,
+          eliminated: false,
+        })),
+        currentWordIndex: 0,
+        startTime: Date.now(),
+        endTime: null,
+        wrongCount: 0,
+        isComplete: false,
+      };
+      
+      const firstWord = shuffledWords[0];
+      
+      return {
+        ...state,
+        mode: 'stem',
+        feedback: null,
+        vocabularySession: undefined,
+        currentVocabularyWord: undefined,
+        casesSession: undefined,
+        currentCaseSentence: undefined,
+        verbTypeSession: undefined,
+        partitiveSession: undefined,
+        currentPartitiveWord: undefined,
+        pluralSession: undefined,
+        currentPluralWord: undefined,
+        genitiveSession: undefined,
+        currentGenitiveWord: undefined,
+        stemSession,
+        currentStemWord: firstWord ? {
+          nominative: firstWord.nominative,
+          stem: firstWord.stem,
+          translation: firstWord.translation,
+          rule: firstWord.rule,
+          hint: firstWord.hint,
+          genitive: firstWord.genitive,
+        } : undefined,
+        lyricsSession: undefined,
+        currentLyricsItem: undefined,
       };
     }
 
@@ -1090,14 +1074,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         mode: 'lyrics',
-        session: null,
-        currentVerb: null,
         feedback: null,
-        currentPerson: undefined,
-        currentPolarity: undefined,
-        currentSentence: undefined,
-        currentGradationQuestion: undefined,
-        gradationSession: undefined,
         vocabularySession: undefined,
         currentVocabularyWord: undefined,
         casesSession: undefined,
@@ -1105,6 +1082,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         verbTypeSession: undefined,
         partitiveSession: undefined,
         currentPartitiveWord: undefined,
+        pluralSession: undefined,
+        currentPluralWord: undefined,
+        genitiveSession: undefined,
+        currentGenitiveWord: undefined,
         lyricsSession,
         currentLyricsItem,
       };
@@ -1112,7 +1093,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'SUBMIT_ANSWER': {
       // Handle verb type arena modes
-      if (state.mode === 'verb-type-present' || state.mode === 'verb-type-imperfect') {
+      if (state.mode === 'verb-type-present' || state.mode === 'verb-type-negative' || 
+          state.mode === 'verb-type-imperfect' || state.mode === 'verb-type-imperfect-negative') {
         if (!state.verbTypeSession) return state;
         
         const session = state.verbTypeSession;
@@ -1174,110 +1156,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         return {
           ...state,
           verbTypeSession: newSession,
-          feedback,
-        };
-      }
-      
-      // Handle consonant gradation mode
-      if (state.mode === 'consonant-gradation') {
-        if (!state.gradationSession) return state;
-        
-        const session = state.gradationSession;
-        const currentRule = getCurrentRule(state);
-        if (!currentRule) return state;
-        
-        // Handle rule confirmation stage
-        if (session.currentStage === 'rule-confirm') {
-          // Any answer confirms understanding (just move forward)
-          const newSession: ConsonantGradationSessionState = {
-            ...session,
-            currentStage: 'noun-practice',
-            currentQuestionIndex: 0,
-          };
-          
-          const nounQuestions = createPracticeQuestions(currentRule).filter(q => q.category === 'noun');
-          const firstQuestion = nounQuestions[0] || undefined;
-          
-          return {
-            ...state,
-            gradationSession: newSession,
-            currentGradationQuestion: firstQuestion,
-            feedback: null,
-          };
-        }
-        
-        // Handle verb guide stage
-        if (session.currentStage === 'verb-guide') {
-          // Any answer moves to verb practice
-          const verbQuestions = createPracticeQuestions(currentRule).filter(q => q.category === 'verb');
-          
-          if (verbQuestions.length === 0) {
-            // No verb examples - skip to next rule
-            const allRules = getAllRules();
-            const nextRuleIndex = session.currentRuleIndex + 1;
-            
-            if (nextRuleIndex >= allRules.length) {
-              return {
-                ...state,
-                gradationSession: {
-                  ...session,
-                  isComplete: true,
-                  endTime: Date.now(),
-                },
-                feedback: null,
-              };
-            }
-            
-            return {
-              ...state,
-              gradationSession: {
-                ...session,
-                currentRuleIndex: nextRuleIndex,
-                currentStage: 'rule-confirm',
-                currentQuestionIndex: 0,
-              },
-              currentGradationQuestion: undefined,
-              feedback: null,
-            };
-          }
-          
-          const firstVerbQuestion = verbQuestions[0];
-          
-          const newSession: ConsonantGradationSessionState = {
-            ...session,
-            currentStage: 'verb-practice',
-            currentQuestionIndex: 0,
-          };
-          
-          return {
-            ...state,
-            gradationSession: newSession,
-            currentGradationQuestion: firstVerbQuestion,
-            feedback: null,
-          };
-        }
-        
-        // Handle practice stages (noun/verb)
-        const currentQuestion = getCurrentQuestion(state);
-        if (!currentQuestion) return state;
-        
-        const isCorrect = checkGradationAnswer(currentQuestion, action.answer);
-        const newWrongCount = session.wrongCount + (isCorrect ? 0 : 1);
-        
-        const correctAnswer = getGradationExpectedAnswer(currentQuestion);
-        const feedback: FeedbackData = {
-          isCorrect,
-          userAnswer: action.answer,
-          correctAnswer,
-          rule: currentRule.rule,
-        };
-        
-        return {
-          ...state,
-          gradationSession: {
-            ...session,
-            wrongCount: newWrongCount,
-          },
           feedback,
         };
       }
@@ -1595,8 +1473,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
       
-      // Handle cases mode
-      if (state.mode === 'cases-fill-blank') {
+      // Handle cases mode (singular and plural)
+      if (state.mode === 'cases-fill-blank' || state.mode === 'cases-fill-blank-plural') {
         if (!state.casesSession || !state.currentCaseSentence) return state;
         
         const casesSession = state.casesSession;
@@ -1690,15 +1568,17 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
       
-      // Handle partitive mode
-      if (state.mode === 'partitive') {
+      // Handle partitive mode (singular and plural)
+      if (state.mode === 'partitive' || state.mode === 'partitive-plural') {
         if (!state.partitiveSession || !state.currentPartitiveWord) return state;
         
         const partitiveSession = state.partitiveSession;
         const currentWordState = partitiveSession.words[partitiveSession.currentWordIndex];
+        const isPlural = state.mode === 'partitive-plural';
         
         const normalizedAnswer = action.answer.trim().toLowerCase();
-        const isCorrect = normalizedAnswer === currentWordState.partitive.toLowerCase();
+        const correctAnswer = isPlural ? currentWordState.partitivePlural : currentWordState.partitive;
+        const isCorrect = normalizedAnswer === correctAnswer?.toLowerCase();
         
         const shouldEliminate = isCorrect;
         
@@ -1730,7 +1610,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         const feedback: FeedbackData = {
           isCorrect,
           userAnswer: action.answer,
-          correctAnswer: currentWordState.partitive,
+          correctAnswer: correctAnswer || '',
           rule: !isCorrect ? ruleInfo?.formation : undefined,
           verbTypeInfo: !isCorrect ? ruleInfo?.name : undefined,
         };
@@ -1738,6 +1618,165 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         return {
           ...state,
           partitiveSession: newPartitiveSession,
+          feedback,
+        };
+      }
+      
+      // Handle plural mode
+      if (state.mode === 'plural') {
+        if (!state.pluralSession || !state.currentPluralWord) return state;
+        
+        const pluralSession = state.pluralSession;
+        const currentWordState = pluralSession.words[pluralSession.currentWordIndex];
+        
+        const normalizedAnswer = action.answer.trim().toLowerCase();
+        const isCorrect = normalizedAnswer === currentWordState.nominativePlural.toLowerCase();
+        
+        const shouldEliminate = isCorrect;
+        
+        const newWordState: PluralWordState = {
+          ...currentWordState,
+          correctCount: isCorrect ? currentWordState.correctCount + 1 : currentWordState.correctCount,
+          wrongCount: currentWordState.wrongCount + (isCorrect ? 0 : 1),
+          eliminated: shouldEliminate,
+        };
+        
+        const newWords = [...pluralSession.words];
+        newWords[pluralSession.currentWordIndex] = newWordState;
+        
+        const newWrongCount = pluralSession.wrongCount + (isCorrect ? 0 : 1);
+        const activeCount = newWords.filter(w => !w.eliminated).length;
+        const isComplete = activeCount === 0;
+        
+        const newPluralSession: PluralSessionState = {
+          ...pluralSession,
+          words: newWords,
+          wrongCount: newWrongCount,
+          isComplete,
+          endTime: isComplete ? Date.now() : null,
+        };
+        
+        // Build feedback with rule info
+        const ruleInfo = getPluralRuleInfo(currentWordState.rule);
+        
+        const feedback: FeedbackData = {
+          isCorrect,
+          userAnswer: action.answer,
+          correctAnswer: currentWordState.nominativePlural,
+          rule: !isCorrect ? ruleInfo?.formation : undefined,
+          verbTypeInfo: !isCorrect ? ruleInfo?.name : undefined,
+        };
+        
+        return {
+          ...state,
+          pluralSession: newPluralSession,
+          feedback,
+        };
+      }
+      
+      // Handle genitive mode (singular and plural)
+      if (state.mode === 'genitive' || state.mode === 'genitive-plural') {
+        if (!state.genitiveSession || !state.currentGenitiveWord) return state;
+        
+        const genitiveSession = state.genitiveSession;
+        const currentWordState = genitiveSession.words[genitiveSession.currentWordIndex];
+        const isPlural = state.mode === 'genitive-plural';
+        
+        const normalizedAnswer = action.answer.trim().toLowerCase();
+        const correctAnswer = isPlural ? currentWordState.genitivePlural : currentWordState.genitiveSingular;
+        const isCorrect = normalizedAnswer === correctAnswer.toLowerCase();
+        
+        const shouldEliminate = isCorrect;
+        
+        const newWordState: GenitiveWordState = {
+          ...currentWordState,
+          correctCount: isCorrect ? currentWordState.correctCount + 1 : currentWordState.correctCount,
+          wrongCount: currentWordState.wrongCount + (isCorrect ? 0 : 1),
+          eliminated: shouldEliminate,
+        };
+        
+        const newWords = [...genitiveSession.words];
+        newWords[genitiveSession.currentWordIndex] = newWordState;
+        
+        const newWrongCount = genitiveSession.wrongCount + (isCorrect ? 0 : 1);
+        const activeCount = newWords.filter(w => !w.eliminated).length;
+        const isComplete = activeCount === 0;
+        
+        const newGenitiveSession: GenitiveSessionState = {
+          ...genitiveSession,
+          words: newWords,
+          wrongCount: newWrongCount,
+          isComplete,
+          endTime: isComplete ? Date.now() : null,
+        };
+        
+        // Build feedback with rule info
+        const ruleInfo = getGenitiveRuleInfo(currentWordState.rule);
+        
+        const feedback: FeedbackData = {
+          isCorrect,
+          userAnswer: action.answer,
+          correctAnswer,
+          rule: !isCorrect ? (isPlural ? ruleInfo?.formationPlural : ruleInfo?.formationSingular) : undefined,
+          verbTypeInfo: !isCorrect ? ruleInfo?.name : undefined,
+        };
+        
+        return {
+          ...state,
+          genitiveSession: newGenitiveSession,
+          feedback,
+        };
+      }
+      
+      // Handle stem mode
+      if (state.mode === 'stem') {
+        if (!state.stemSession || !state.currentStemWord) return state;
+        
+        const stemSession = state.stemSession;
+        const currentWordState = stemSession.words[stemSession.currentWordIndex];
+        
+        const normalizedAnswer = action.answer.trim().toLowerCase();
+        const correctAnswer = currentWordState.stem;
+        const isCorrect = normalizedAnswer === correctAnswer.toLowerCase();
+        
+        const shouldEliminate = isCorrect;
+        
+        const newWordState: StemWordState = {
+          ...currentWordState,
+          correctCount: isCorrect ? currentWordState.correctCount + 1 : currentWordState.correctCount,
+          wrongCount: currentWordState.wrongCount + (isCorrect ? 0 : 1),
+          eliminated: shouldEliminate,
+        };
+        
+        const newWords = [...stemSession.words];
+        newWords[stemSession.currentWordIndex] = newWordState;
+        
+        const newWrongCount = stemSession.wrongCount + (isCorrect ? 0 : 1);
+        const activeCount = newWords.filter(w => !w.eliminated).length;
+        const isComplete = activeCount === 0;
+        
+        const newStemSession: StemSessionState = {
+          ...stemSession,
+          words: newWords,
+          wrongCount: newWrongCount,
+          isComplete,
+          endTime: isComplete ? Date.now() : null,
+        };
+        
+        // Build feedback with rule info
+        const ruleInfo = getStemRuleInfo(currentWordState.rule);
+        
+        const feedback: FeedbackData = {
+          isCorrect,
+          userAnswer: action.answer,
+          correctAnswer,
+          rule: !isCorrect ? ruleInfo?.formation : undefined,
+          verbTypeInfo: !isCorrect ? ruleInfo?.name : undefined,
+        };
+        
+        return {
+          ...state,
+          stemSession: newStemSession,
           feedback,
         };
       }
@@ -1840,123 +1879,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
       
-      // Regular verb modes
-      if (!state.session || !state.currentVerb) return state;
-
-      const verbsForSession = getVerbsForLevels(currentSessionLevels);
-      const isCorrect = checkAnswer(state.mode, state.currentVerb, action.answer, state.currentPerson, state.currentPolarity);
-      const currentVerbState = state.session.verbs[state.session.currentVerbIndex];
-
-      const newWrongForVerb = currentVerbState.wrongCount + (isCorrect ? 0 : 1);
-      const shouldEliminate = isCorrect;
-      
-      const newVerbState: VerbSessionState = {
-        ...currentVerbState,
-        correctCount: isCorrect ? currentVerbState.correctCount + 1 : currentVerbState.correctCount,
-        wrongCount: newWrongForVerb,
-        eliminated: shouldEliminate,
-      };
-
-      const newVerbs = [...state.session.verbs];
-      newVerbs[state.session.currentVerbIndex] = newVerbState;
-
-      const newWrongCount = state.session.wrongCount + (isCorrect ? 0 : 1);
-      const newSession: SessionState = {
-        ...state.session,
-        verbs: newVerbs,
-        wrongCount: newWrongCount,
-      };
-
-      const activeCount = getActiveVerbCount(newSession);
-      const isComplete = activeCount === 0;
-
-      let newPlayer = state.player;
-
-      if (isComplete) {
-        newSession.isComplete = true;
-        newSession.endTime = Date.now();
-        
-        const timeMs = newSession.endTime - state.session.startTime!;
-        const totalAttempts = newVerbs.reduce((sum, v) => sum + v.correctCount, 0) + newWrongCount;
-        const accuracy = Math.round(((totalAttempts - newWrongCount) / totalAttempts) * 100);
-        const isPerfect = newWrongCount === 0;
-
-        const record: TimeRecord = {
-          mode: state.mode,
-          levels: currentSessionLevels,
-          timeMs,
-          date: new Date().toISOString().split('T')[0],
-          accuracy,
-          verbCount: newVerbs.length,
-        };
-
-        const newBestTimes = [...state.player.bestTimes];
-        const levelKey = currentSessionLevels.sort().join('+');
-        const existingIdx = newBestTimes.findIndex(
-          (r) => r.mode === state.mode && r.levels.sort().join('+') === levelKey
-        );
-        
-        if (existingIdx === -1 || newBestTimes[existingIdx].timeMs > timeMs) {
-          if (existingIdx === -1) {
-            newBestTimes.push(record);
-          } else {
-            newBestTimes[existingIdx] = record;
-          }
-        }
-
-        const newLevelProgress = state.player.levelProgress.map((lp) => {
-          if (currentSessionLevels.includes(lp.level) && isPerfect) {
-            if (state.mode === 'recall') {
-              return { ...lp, recallCompleted: true };
-            } else if (state.mode === 'active-recall') {
-              return { ...lp, activeRecallCompleted: true };
-            } else if (state.mode === 'conjugation') {
-              return { ...lp, conjugationCompleted: true };
-            } else if (state.mode === 'imperfect') {
-              return { ...lp, imperfectCompleted: true };
-            }
-          }
-          return lp;
-        });
-
-        newPlayer = {
-          ...state.player,
-          bestTimes: newBestTimes,
-          levelProgress: newLevelProgress,
-        };
-      }
-
-      // Build detailed feedback
-      const correctAnswer = getExpectedAnswer(state.mode, state.currentVerb, state.currentPerson, state.currentPolarity);
-      const typeInfo = verbTypeInfo[state.currentVerb.type];
-      
-      const feedback: FeedbackData = {
-        isCorrect,
-        userAnswer: action.answer,
-        correctAnswer,
-        // Extended feedback for wrong answers
-        verbType: !isCorrect ? state.currentVerb.type : undefined,
-        verbTypeInfo: !isCorrect ? typeInfo?.name : undefined,
-        rule: !isCorrect ? (state.currentPolarity === 'negative' ? negativeInfo.rule : typeInfo?.rule) : undefined,
-        similarVerbs: !isCorrect ? getSimilarVerbs(state.currentVerb.type, state.currentVerb.infinitive, verbsForSession) : undefined,
-        fullConjugation: !isCorrect && (state.mode === 'conjugation' || state.mode === 'imperfect') && state.currentVerb.forms 
-          ? (state.mode === 'conjugation' 
-              ? (state.currentPolarity === 'positive' ? state.currentVerb.forms.present : state.currentVerb.forms.negative)
-              : state.currentVerb.forms.imperfect) // Imperfect mode only shows positive forms
-          : undefined,
-      };
-
-      return {
-        ...state,
-        session: newSession,
-        player: newPlayer,
-        feedback,
-      };
+      return state;
     }
 
     case 'NEXT_VERB': {
       // Handle verb type arena modes
-      if (state.mode === 'verb-type-present' || state.mode === 'verb-type-imperfect') {
+      if (state.mode === 'verb-type-present' || state.mode === 'verb-type-negative' || 
+          state.mode === 'verb-type-imperfect' || state.mode === 'verb-type-imperfect-negative') {
         if (!state.verbTypeSession) return state;
         
         const session = state.verbTypeSession;
@@ -1986,114 +1915,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         // Stay on current verb (still has forms to complete)
         return {
           ...state,
-          feedback: null,
-        };
-      }
-      
-      // Handle consonant gradation mode
-      if (state.mode === 'consonant-gradation') {
-        if (!state.gradationSession) return state;
-        
-        const session = state.gradationSession;
-        const currentRule = getCurrentRule(state);
-        if (!currentRule) return state;
-        
-        // Move to next question in current stage
-        const currentQuestions = getCurrentPracticeQuestions(state);
-        const nextQuestionIndex = session.currentQuestionIndex + 1;
-        
-        // Check if we've finished current stage
-        if (nextQuestionIndex >= currentQuestions.length) {
-          // Move to next stage
-          if (session.currentStage === 'noun-practice') {
-            // Check if there are verb examples for this rule
-            const verbQuestions = createPracticeQuestions(currentRule).filter(q => q.category === 'verb');
-            if (verbQuestions.length === 0) {
-              // No verb examples - skip to next rule
-              const allRules = getAllRules();
-              const nextRuleIndex = session.currentRuleIndex + 1;
-              
-              if (nextRuleIndex >= allRules.length) {
-                // All rules completed
-                return {
-                  ...state,
-                  gradationSession: {
-                    ...session,
-                    isComplete: true,
-                    endTime: Date.now(),
-                  },
-                  feedback: null,
-                };
-              }
-              
-              // Start next rule
-              return {
-                ...state,
-                gradationSession: {
-                  ...session,
-                  currentRuleIndex: nextRuleIndex,
-                  currentStage: 'rule-confirm',
-                  currentQuestionIndex: 0,
-                },
-                currentGradationQuestion: undefined,
-                feedback: null,
-              };
-            }
-            
-            // Move to verb guide (show explanation before verb practice)
-            return {
-              ...state,
-              gradationSession: {
-                ...session,
-                currentStage: 'verb-guide',
-                currentQuestionIndex: 0,
-              },
-              currentGradationQuestion: undefined,
-              feedback: null,
-            };
-          } else if (session.currentStage === 'verb-practice') {
-            // Move to next rule
-            const allRules = getAllRules();
-            const nextRuleIndex = session.currentRuleIndex + 1;
-            
-            if (nextRuleIndex >= allRules.length) {
-              // All rules completed
-              return {
-                ...state,
-                gradationSession: {
-                  ...session,
-                  isComplete: true,
-                  endTime: Date.now(),
-                },
-                feedback: null,
-              };
-            }
-            
-            // Start next rule (begin with rule confirmation)
-            return {
-              ...state,
-              gradationSession: {
-                ...session,
-                currentRuleIndex: nextRuleIndex,
-                currentStage: 'rule-confirm',
-                currentQuestionIndex: 0,
-              },
-              currentGradationQuestion: undefined,
-              feedback: null,
-            };
-          }
-        }
-        
-        // Move to next question in current stage
-        const nextQuestion = currentQuestions[nextQuestionIndex];
-        
-        return {
-          ...state,
-          gradationSession: {
-            ...session,
-            currentQuestionIndex: nextQuestionIndex,
-          },
-          currentGradationQuestion: nextQuestion,
           feedback: null,
         };
       }
@@ -2173,8 +1994,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
       
-      // Handle cases mode
-      if (state.mode === 'cases-fill-blank') {
+      // Handle cases mode (singular and plural)
+      if (state.mode === 'cases-fill-blank' || state.mode === 'cases-fill-blank-plural') {
         if (!state.casesSession) return state;
         
         const nextIndex = getNextActiveSentenceIndex(
@@ -2206,17 +2027,19 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             baseWord: nextSentence.baseWord,
             sentenceWithBlank: nextSentence.sentenceWithBlank,
             hint: nextSentence.hint,
+            isPlural: nextSentence.isPlural,
           },
           feedback: null,
         };
       }
       
-      // Handle partitive mode
-      if (state.mode === 'partitive') {
+      // Handle partitive mode (singular and plural)
+      if (state.mode === 'partitive' || state.mode === 'partitive-plural') {
         if (!state.partitiveSession) return state;
         
         const session = state.partitiveSession;
         const activeWords = session.words.filter(w => !w.eliminated);
+        const isPlural = state.mode === 'partitive-plural';
         
         if (activeWords.length === 0 || session.isComplete) {
           return {
@@ -2250,9 +2073,156 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           currentPartitiveWord: {
             nominative: nextWord.nominative,
             partitive: nextWord.partitive,
+            nominativePlural: nextWord.nominativePlural,
+            partitivePlural: nextWord.partitivePlural,
+            translation: nextWord.translation,
+            rule: nextWord.rule,
+            hint: isPlural ? nextWord.hintPlural : nextWord.hint,
+            hintPlural: nextWord.hintPlural,
+          },
+          feedback: null,
+        };
+      }
+      
+      // Handle plural mode
+      if (state.mode === 'plural') {
+        if (!state.pluralSession) return state;
+        
+        const session = state.pluralSession;
+        const activeWords = session.words.filter(w => !w.eliminated);
+        
+        if (activeWords.length === 0 || session.isComplete) {
+          return {
+            ...state,
+            feedback: null,
+          };
+        }
+        
+        // Find next active word
+        let nextIndex = session.currentWordIndex + 1;
+        while (nextIndex < session.words.length && session.words[nextIndex].eliminated) {
+          nextIndex++;
+        }
+        
+        // Wrap around if needed
+        if (nextIndex >= session.words.length) {
+          nextIndex = 0;
+          while (nextIndex < session.words.length && session.words[nextIndex].eliminated) {
+            nextIndex++;
+          }
+        }
+        
+        const nextWord = session.words[nextIndex];
+        
+        return {
+          ...state,
+          pluralSession: {
+            ...session,
+            currentWordIndex: nextIndex,
+          },
+          currentPluralWord: {
+            nominative: nextWord.nominative,
+            nominativePlural: nextWord.nominativePlural,
             translation: nextWord.translation,
             rule: nextWord.rule,
             hint: nextWord.hint,
+          },
+          feedback: null,
+        };
+      }
+      
+      // Handle genitive mode (singular and plural)
+      if (state.mode === 'genitive' || state.mode === 'genitive-plural') {
+        if (!state.genitiveSession) return state;
+        
+        const session = state.genitiveSession;
+        const activeWords = session.words.filter(w => !w.eliminated);
+        
+        if (activeWords.length === 0 || session.isComplete) {
+          return {
+            ...state,
+            feedback: null,
+          };
+        }
+        
+        // Find next active word
+        let nextIndex = session.currentWordIndex + 1;
+        while (nextIndex < session.words.length && session.words[nextIndex].eliminated) {
+          nextIndex++;
+        }
+        
+        // Wrap around if needed
+        if (nextIndex >= session.words.length) {
+          nextIndex = 0;
+          while (nextIndex < session.words.length && session.words[nextIndex].eliminated) {
+            nextIndex++;
+          }
+        }
+        
+        const nextWord = session.words[nextIndex];
+        
+        return {
+          ...state,
+          genitiveSession: {
+            ...session,
+            currentWordIndex: nextIndex,
+          },
+          currentGenitiveWord: {
+            nominative: nextWord.nominative,
+            genitiveSingular: nextWord.genitiveSingular,
+            nominativePlural: nextWord.nominativePlural,
+            genitivePlural: nextWord.genitivePlural,
+            translation: nextWord.translation,
+            rule: nextWord.rule,
+            hint: nextWord.hint,
+          },
+          feedback: null,
+        };
+      }
+      
+      // Handle stem mode
+      if (state.mode === 'stem') {
+        if (!state.stemSession) return state;
+        
+        const session = state.stemSession;
+        const activeWords = session.words.filter(w => !w.eliminated);
+        
+        if (activeWords.length === 0 || session.isComplete) {
+          return {
+            ...state,
+            feedback: null,
+          };
+        }
+        
+        // Find next active word
+        let nextIndex = session.currentWordIndex + 1;
+        while (nextIndex < session.words.length && session.words[nextIndex].eliminated) {
+          nextIndex++;
+        }
+        
+        // Wrap around if needed
+        if (nextIndex >= session.words.length) {
+          nextIndex = 0;
+          while (nextIndex < session.words.length && session.words[nextIndex].eliminated) {
+            nextIndex++;
+          }
+        }
+        
+        const nextWord = session.words[nextIndex];
+        
+        return {
+          ...state,
+          stemSession: {
+            ...session,
+            currentWordIndex: nextIndex,
+          },
+          currentStemWord: {
+            nominative: nextWord.nominative,
+            stem: nextWord.stem,
+            translation: nextWord.translation,
+            rule: nextWord.rule,
+            hint: nextWord.hint,
+            genitive: nextWord.genitive,
           },
           feedback: null,
         };
@@ -2367,49 +2337,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
       
-      // Regular verb modes
-      if (!state.session) return state;
-
-      const nextIndex = getNextActiveVerbIndex(
-        state.session,
-        state.session.currentVerbIndex + 1
-      );
-
-      if (nextIndex === -1 || state.session.isComplete) {
-        return {
-          ...state,
-          feedback: null,
-        };
-      }
-
-      const verbsForSession = getVerbsForLevels(currentSessionLevels);
-      const nextVerb = verbsForSession.find(
-        (v) => v.infinitive === state.session!.verbs[nextIndex].infinitive
-      )!;
-
-      // For conjugation and imperfect, randomize person and polarity for next verb
-      const isConjugation = state.mode === 'conjugation';
-      const isImperfect = state.mode === 'imperfect';
-      const person = (isConjugation || isImperfect) ? getRandomPerson() : state.currentPerson;
-      const polarity = (isConjugation || isImperfect) ? getRandomPolarity() : state.currentPolarity;
-      const sentence = isConjugation && person && polarity 
-        ? getRandomSentence(person, polarity)
-        : isImperfect && person && polarity
-        ? getRandomImperfectSentence(person, polarity)
-        : undefined;
-
-      return {
-        ...state,
-        session: {
-          ...state.session,
-          currentVerbIndex: nextIndex,
-        },
-        currentVerb: nextVerb,
-        feedback: null,
-        currentPerson: person,
-        currentPolarity: polarity,
-        currentSentence: sentence,
-      };
+      return state;
     }
 
     case 'CLEAR_FEEDBACK': {
@@ -2423,14 +2351,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         mode: 'menu',
-        session: null,
-        currentVerb: null,
         feedback: null,
-        currentPerson: undefined,
-        currentPolarity: undefined,
-        currentSentence: undefined,
-        currentGradationQuestion: undefined,
-        gradationSession: undefined,
         vocabularySession: undefined,
         currentVocabularyWord: undefined,
         casesSession: undefined,
@@ -2438,6 +2359,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         verbTypeSession: undefined,
         partitiveSession: undefined,
         currentPartitiveWord: undefined,
+        pluralSession: undefined,
+        currentPluralWord: undefined,
+        genitiveSession: undefined,
+        currentGenitiveWord: undefined,
+        stemSession: undefined,
+        currentStemWord: undefined,
         lyricsSession: undefined,
         currentLyricsItem: undefined,
       };
@@ -2469,12 +2396,6 @@ export function useGameState() {
       try {
         const saved = await loadFromCSV();
         if (saved) {
-          // Ensure all fields exist
-          saved.levelProgress = saved.levelProgress.map((lp) => ({
-            ...lp,
-            conjugationCompleted: lp.conjugationCompleted ?? false,
-            imperfectCompleted: lp.imperfectCompleted ?? false,
-          }));
           dispatch({ type: 'LOAD_STATE', state: saved });
         }
       } catch (error) {
@@ -2501,7 +2422,7 @@ export function useGameState() {
   }, [state.player]);
 
   // Verb Type Arena functions
-  const startVerbTypeSession = useCallback((tense: 'present' | 'imperfect', types: number[]) => {
+  const startVerbTypeSession = useCallback((tense: 'present' | 'negative' | 'imperfect' | 'imperfectNegative', types: number[]) => {
     dispatch({ type: 'START_VERB_TYPE_SESSION', tense, types });
   }, []);
   
@@ -2574,13 +2495,23 @@ export function useGameState() {
   // Cases Arena related - default to 'static' (where? - inessive + adessive) as a good starting point
   const [selectedCaseCategories, setSelectedCaseCategories] = useState<CaseCategory[]>(['static']);
   
-  const startCasesSession = useCallback((categories: CaseCategory[]) => {
-    dispatch({ type: 'START_CASES_SESSION', categories });
+  const startCasesSession = useCallback((categories: CaseCategory[], isPlural?: boolean) => {
+    dispatch({ type: 'START_CASES_SESSION', categories, isPlural });
   }, []);
   
-  const getCasesSentenceCount = useCallback((categories: CaseCategory[]) => {
+  const getCasesSentenceCount = useCallback((categories: CaseCategory[], isPlural?: boolean) => {
     let count = 0;
     const seenIds = new Set<string>();
+    
+    if (isPlural) {
+      // For plural mode, count plural sentences
+      const pluralSentences = getPluralSentences();
+      if (categories.length === 0 || categories.includes('location') || categories.includes('surface')) {
+        return pluralSentences.length;
+      }
+      // Filter by specific case types
+      return pluralSentences.filter(s => categories.includes(s.caseUsed as CaseCategory)).length;
+    }
     for (const category of categories) {
       const sentences = getSentencesByCategory(category);
       for (const s of sentences) {
@@ -2596,12 +2527,45 @@ export function useGameState() {
   // Partitive session actions
   const [selectedPartitiveRules, setSelectedPartitiveRules] = useState<PartitiveRule[]>(['single-vowel']);
   
-  const startPartitiveSession = useCallback((rules: PartitiveRule[]) => {
-    dispatch({ type: 'START_PARTITIVE_SESSION', rules });
+  const startPartitiveSession = useCallback((rules: PartitiveRule[], isPlural: boolean = false) => {
+    dispatch({ type: 'START_PARTITIVE_SESSION', rules, isPlural });
   }, []);
   
   const getPartitiveWordCount = useCallback((rules: PartitiveRule[]) => {
     return getWordsForRules(rules).length;
+  }, []);
+  
+  // Plural session actions
+  const [selectedPluralRules, setSelectedPluralRules] = useState<PluralRule[]>(['single-vowel']);
+  
+  const startPluralSession = useCallback((rules: PluralRule[]) => {
+    dispatch({ type: 'START_PLURAL_SESSION', rules });
+  }, []);
+  
+  const getPluralWordCount = useCallback((rules: PluralRule[]) => {
+    return getWordsForPluralRules(rules).length;
+  }, []);
+  
+  // Genitive session actions
+  const [selectedGenitiveRules, setSelectedGenitiveRules] = useState<GenitiveRule[]>(['single-vowel']);
+  
+  const startGenitiveSession = useCallback((rules: GenitiveRule[], isPlural: boolean = false) => {
+    dispatch({ type: 'START_GENITIVE_SESSION', rules, isPlural });
+  }, []);
+  
+  const getGenitiveWordCount = useCallback((rules: GenitiveRule[]) => {
+    return getWordsForGenitiveRules(rules).length;
+  }, []);
+  
+  // Stem session actions
+  const [selectedStemRules, setSelectedStemRules] = useState<StemRule[]>(['no-change']);
+  
+  const startStemSession = useCallback((rules: StemRule[]) => {
+    dispatch({ type: 'START_STEM_SESSION', rules });
+  }, []);
+  
+  const getStemWordCount = useCallback((rules: StemRule[]) => {
+    return getWordsForStemRules(rules).length;
   }, []);
   
   // Lyrics Learning related
@@ -2666,6 +2630,24 @@ export function useGameState() {
     startPartitiveSession,
     getPartitiveWordCount,
     partitiveRules: PARTITIVE_RULES,
+    // Plural exports
+    selectedPluralRules,
+    setSelectedPluralRules,
+    startPluralSession,
+    getPluralWordCount,
+    pluralRules: PLURAL_RULES,
+    // Genitive exports
+    selectedGenitiveRules,
+    setSelectedGenitiveRules,
+    startGenitiveSession,
+    getGenitiveWordCount,
+    genitiveRules: GENITIVE_RULES,
+    // Stem exports
+    selectedStemRules,
+    setSelectedStemRules,
+    startStemSession,
+    getStemWordCount,
+    stemRules: STEM_RULES,
     // Lyrics Learning exports
     selectedSongId,
     setSelectedSongId,

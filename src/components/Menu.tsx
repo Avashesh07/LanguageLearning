@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
-import type { PlayerState, CaseCategory, PartitiveRule, LyricsSubMode } from '../types';
+import type { PlayerState, CaseCategory, PartitiveRule, PluralRule, GenitiveRule, StemRule, LyricsSubMode } from '../types';
 import { verbs, verbTypeInfo } from '../data/verbs';
 import type { Tavoite } from '../data/tavoiteVocabulary';
 import type { SM2Chapter, SM2Cycle } from '../data/suomenMestari2';
 import type { CaseGroup } from '../data/finnishCases';
 import type { PartitiveRuleInfo } from '../data/partitiveData';
+import type { PluralRuleInfo } from '../data/pluralData';
+import type { GenitiveRuleInfo } from '../data/genitiveData';
+import type { StemRuleInfo } from '../data/stemData';
 import type { Song } from '../data/songs';
 import { TargetIcon, BookIcon, OpenBookIcon, PencilIcon, CheckIcon, MapPinIcon } from './Icons';
 
@@ -16,7 +19,7 @@ interface MenuProps {
   // Verb Type Arena props
   selectedVerbTypes: number[];
   onSelectVerbTypes: (types: number[]) => void;
-  onStartVerbTypeSession: (tense: 'present' | 'imperfect', types: number[]) => void;
+  onStartVerbTypeSession: (tense: 'present' | 'negative' | 'imperfect' | 'imperfectNegative', types: number[]) => void;
   getVerbCountByTypes: (types: number[]) => number;
   // Vocabulary props (Kurssin Arvostelu)
   selectedTavoites: number[];
@@ -38,15 +41,33 @@ interface MenuProps {
   // Cases props
   selectedCaseCategories: CaseCategory[];
   onSelectCaseCategories: (categories: CaseCategory[]) => void;
-  onStartCasesSession: (categories: CaseCategory[]) => void;
-  getCasesSentenceCount: (categories: CaseCategory[]) => number;
+  onStartCasesSession: (categories: CaseCategory[], isPlural?: boolean) => void;
+  getCasesSentenceCount: (categories: CaseCategory[], isPlural?: boolean) => number;
   caseGroups: CaseGroup[];
   // Partitive props
   selectedPartitiveRules: PartitiveRule[];
   onSelectPartitiveRules: (rules: PartitiveRule[]) => void;
-  onStartPartitiveSession: (rules: PartitiveRule[]) => void;
+  onStartPartitiveSession: (rules: PartitiveRule[], isPlural?: boolean) => void;
   getPartitiveWordCount: (rules: PartitiveRule[]) => number;
   partitiveRules: PartitiveRuleInfo[];
+  // Plural props
+  selectedPluralRules: PluralRule[];
+  onSelectPluralRules: (rules: PluralRule[]) => void;
+  onStartPluralSession: (rules: PluralRule[]) => void;
+  getPluralWordCount: (rules: PluralRule[]) => number;
+  pluralRules: PluralRuleInfo[];
+  // Genitive props
+  selectedGenitiveRules: GenitiveRule[];
+  onSelectGenitiveRules: (rules: GenitiveRule[]) => void;
+  onStartGenitiveSession: (rules: GenitiveRule[], isPlural?: boolean) => void;
+  getGenitiveWordCount: (rules: GenitiveRule[]) => number;
+  genitiveRules: GenitiveRuleInfo[];
+  // Stem props
+  selectedStemRules: StemRule[];
+  onSelectStemRules: (rules: StemRule[]) => void;
+  onStartStemSession: (rules: StemRule[]) => void;
+  getStemWordCount: (rules: StemRule[]) => number;
+  stemRules: StemRuleInfo[];
   // Lyrics props
   selectedSongId: string;
   onSelectSongId: (songId: string) => void;
@@ -56,8 +77,8 @@ interface MenuProps {
   getSongInfo: (songId: string) => { title: string; artist: string; wordCount: number; lineCount: number; difficulty: string } | null;
   allSongs: Song[];
   // Tab management
-  initialTab?: 'verbs' | 'vocabulary' | 'cases' | 'partitive' | 'lyrics';
-  onTabChange?: (tab: 'verbs' | 'vocabulary' | 'cases' | 'partitive' | 'lyrics') => void;
+  initialTab?: 'verbs' | 'vocabulary' | 'cases' | 'partitive' | 'plural' | 'genitive' | 'stem' | 'lyrics';
+  onTabChange?: (tab: 'verbs' | 'vocabulary' | 'cases' | 'partitive' | 'plural' | 'genitive' | 'stem' | 'lyrics') => void;
 }
 
 const VERB_TYPES = [1, 2, 3, 4, 5, 6] as const;
@@ -93,6 +114,21 @@ export function Menu({
   onStartPartitiveSession,
   getPartitiveWordCount,
   partitiveRules,
+  selectedPluralRules,
+  onSelectPluralRules,
+  onStartPluralSession,
+  getPluralWordCount,
+  pluralRules,
+  selectedGenitiveRules,
+  onSelectGenitiveRules,
+  onStartGenitiveSession,
+  getGenitiveWordCount,
+  genitiveRules,
+  selectedStemRules,
+  onSelectStemRules,
+  onStartStemSession,
+  getStemWordCount,
+  stemRules,
   selectedSongId,
   onSelectSongId,
   selectedLyricsMode,
@@ -103,14 +139,14 @@ export function Menu({
   initialTab = 'verbs',
   onTabChange,
 }: MenuProps) {
-  const [activeTab, setActiveTab] = useState<'verbs' | 'vocabulary' | 'cases' | 'partitive' | 'lyrics'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'verbs' | 'vocabulary' | 'cases' | 'partitive' | 'plural' | 'genitive' | 'stem' | 'lyrics'>(initialTab);
   
   // Update local state when initialTab changes (e.g., when returning from quiz)
   useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab]);
   
-  const handleTabChange = (tab: 'verbs' | 'vocabulary' | 'cases' | 'partitive' | 'lyrics') => {
+  const handleTabChange = (tab: 'verbs' | 'vocabulary' | 'cases' | 'partitive' | 'plural' | 'genitive' | 'stem' | 'lyrics') => {
     setActiveTab(tab);
     onTabChange?.(tab);
   };
@@ -194,7 +230,7 @@ export function Menu({
           className={`tab-btn ${activeTab === 'verbs' ? 'active' : ''}`}
           onClick={() => handleTabChange('verbs')}
         >
-          <TargetIcon size={18} /> Verb Arena
+          <TargetIcon size={18} /> Verb Harjoitus
         </button>
         <button 
           className={`tab-btn ${activeTab === 'vocabulary' ? 'active' : ''}`}
@@ -213,6 +249,24 @@ export function Menu({
           onClick={() => handleTabChange('partitive')}
         >
           <TargetIcon size={18} /> Partitive
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'plural' ? 'active' : ''}`}
+          onClick={() => handleTabChange('plural')}
+        >
+          <TargetIcon size={18} /> Monikko
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'genitive' ? 'active' : ''}`}
+          onClick={() => handleTabChange('genitive')}
+        >
+          <TargetIcon size={18} /> Genetiivi
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'stem' ? 'active' : ''}`}
+          onClick={() => handleTabChange('stem')}
+        >
+          <TargetIcon size={18} /> Vartalo
         </button>
         <button 
           className={`tab-btn ${activeTab === 'lyrics' ? 'active' : ''}`}
@@ -312,11 +366,23 @@ export function Menu({
               onClick={() => onStartCasesSession(selectedCaseCategories)}
             >
               <div className="mode-info">
-                <span className="mode-name"><PencilIcon size={18} /> Fill in the Blank</span>
-                <span className="mode-desc">Complete sentences with correct case form</span>
+                <span className="mode-name"><PencilIcon size={18} /> Singular Cases</span>
+                <span className="mode-desc">Complete sentences with singular case forms</span>
               </div>
               <div className="mode-best">
                 <span className="word-count">{casesSentenceCount} sentences</span>
+              </div>
+            </button>
+            <button
+              className="mode-button cases plural"
+              onClick={() => onStartCasesSession(selectedCaseCategories, true)}
+            >
+              <div className="mode-info">
+                <span className="mode-name"><PencilIcon size={18} /> Plural Cases (Monikko)</span>
+                <span className="mode-desc">Complete sentences with plural case forms</span>
+              </div>
+              <div className="mode-best">
+                <span className="word-count">{getCasesSentenceCount(selectedCaseCategories, true)} sentences</span>
               </div>
             </button>
           </div>
@@ -415,15 +481,372 @@ export function Menu({
           <div className="menu-modes partitive-modes">
             <button
               className="mode-button partitive"
-              onClick={() => onStartPartitiveSession(selectedPartitiveRules)}
+              onClick={() => onStartPartitiveSession(selectedPartitiveRules, false)}
               disabled={selectedPartitiveRules.length === 0}
             >
               <div className="mode-info">
-                <span className="mode-name"><PencilIcon size={18} /> Practice Partitive Forms</span>
-                <span className="mode-desc">See a word, write its partitive form</span>
+                <span className="mode-name"><PencilIcon size={18} /> Partitiivi (Singular)</span>
+                <span className="mode-desc">See a word, write its singular partitive form</span>
               </div>
               <div className="mode-best">
                 <span className="word-count">{getPartitiveWordCount(selectedPartitiveRules)} words</span>
+              </div>
+            </button>
+
+            <button
+              className="mode-button partitive plural"
+              onClick={() => onStartPartitiveSession(selectedPartitiveRules, true)}
+              disabled={selectedPartitiveRules.length === 0}
+            >
+              <div className="mode-info">
+                <span className="mode-name"><PencilIcon size={18} /> Partitiivi Monikko (Plural)</span>
+                <span className="mode-desc">See a word, write its plural partitive form</span>
+              </div>
+              <div className="mode-best">
+                <span className="word-count">{getPartitiveWordCount(selectedPartitiveRules)} words</span>
+              </div>
+            </button>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'plural' && (
+        <>
+          <p className="menu-subtitle">Master Finnish Nominative Plural - essential for speaking about multiple things</p>
+
+          {/* Plural Information */}
+          <div className="partitive-info-section">
+            <div className="partitive-reference-card">
+              <h4>Monikko (Nominative Plural)</h4>
+              <div className="partitive-ending-info">
+                <div className="ending-group">
+                  <span className="ending-label">Endings:</span>
+                  <span className="ending-value">-t, -et, -set</span>
+                </div>
+                <div className="ending-group">
+                  <span className="ending-label">Question:</span>
+                  <span className="ending-value">Ketkä? Mitkä? (Who? Which ones?)</span>
+                </div>
+              </div>
+              
+              <div className="partitive-uses">
+                <h5>When to use Nominative Plural:</h5>
+                <ul className="partitive-rules">
+                  <li><strong>Multiple subjects:</strong> Koirat juoksevat (The dogs run)</li>
+                  <li><strong>Predicate plural:</strong> Nämä ovat kirjat (These are the books)</li>
+                  <li><strong>After demonstratives:</strong> Nuo talot (Those houses)</li>
+                  <li><strong>After possessives:</strong> Minun ystäväni (My friends)</li>
+                </ul>
+              </div>
+
+              <div className="partitive-examples">
+                <h5>Examples:</h5>
+                <div className="example-grid">
+                  <div className="example-item">
+                    <span className="base">talo</span> → <span className="partitive">talot</span>
+                  </div>
+                  <div className="example-item">
+                    <span className="base">koira</span> → <span className="partitive">koirat</span>
+                  </div>
+                  <div className="example-item">
+                    <span className="base">ovi</span> → <span className="partitive">ovet</span>
+                  </div>
+                  <div className="example-item">
+                    <span className="base">nainen</span> → <span className="partitive">naiset</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Rule Selection */}
+          <div className="partitive-rule-selector">
+            <h3>Select Word Types to Practice</h3>
+            <div className="partitive-rule-grid">
+              {pluralRules.map((rule) => {
+                const isSelected = selectedPluralRules.includes(rule.id);
+                
+                return (
+                  <button
+                    key={rule.id}
+                    className={`partitive-rule-btn ${isSelected ? 'selected' : ''}`}
+                    onClick={() => {
+                      if (isSelected) {
+                        if (selectedPluralRules.length > 1) {
+                          onSelectPluralRules(selectedPluralRules.filter(r => r !== rule.id));
+                        }
+                      } else {
+                        onSelectPluralRules([...selectedPluralRules, rule.id]);
+                      }
+                    }}
+                    style={{ '--rule-color': rule.color } as React.CSSProperties}
+                  >
+                    <div className="rule-header">
+                      <span className="rule-name">{rule.name}</span>
+                    </div>
+                    <span className="rule-description">{rule.description}</span>
+                    <span className="rule-formation">{rule.formation}</span>
+                    <span className="rule-example">{rule.examples[0]}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="selected-info">
+              Selected: {selectedPluralRules.length} rule{selectedPluralRules.length !== 1 ? 's' : ''} ({getPluralWordCount(selectedPluralRules)} words)
+            </p>
+          </div>
+
+          {/* Game Mode */}
+          <div className="menu-modes partitive-modes">
+            <button
+              className="mode-button plural-mode"
+              onClick={() => onStartPluralSession(selectedPluralRules)}
+              disabled={selectedPluralRules.length === 0}
+            >
+              <div className="mode-info">
+                <span className="mode-name"><PencilIcon size={18} /> Practice Nominative Plural</span>
+                <span className="mode-desc">See a singular word, write its plural form</span>
+              </div>
+              <div className="mode-best">
+                <span className="word-count">{getPluralWordCount(selectedPluralRules)} words</span>
+              </div>
+            </button>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'genitive' && (
+        <>
+          <p className="menu-subtitle">Master the Genitive case - showing possession and used with many postpositions</p>
+
+          {/* Genitive Information */}
+          <div className="partitive-info-section">
+            <div className="partitive-reference-card">
+              <h4>Genetiivi (Genitive Case)</h4>
+              <div className="partitive-ending-info">
+                <div className="ending-group">
+                  <span className="ending-label">Singular endings:</span>
+                  <span className="ending-value">-n</span>
+                </div>
+                <div className="ending-group">
+                  <span className="ending-label">Plural endings:</span>
+                  <span className="ending-value">-en, -den, -tten, -ien, etc.</span>
+                </div>
+                <div className="ending-group">
+                  <span className="ending-label">Question:</span>
+                  <span className="ending-value">Kenen? Minkä? (Whose? Of what?)</span>
+                </div>
+              </div>
+              
+              <div className="partitive-uses">
+                <h5>When to use Genitive:</h5>
+                <ul className="partitive-rules">
+                  <li><strong>Possession:</strong> koiran häntä (the dog's tail)</li>
+                  <li><strong>With postpositions:</strong> talon takana (behind the house)</li>
+                  <li><strong>As object (total):</strong> Ostan auton (I buy the car)</li>
+                  <li><strong>Compound words:</strong> kirjakauppa (bookstore)</li>
+                </ul>
+              </div>
+
+              <div className="partitive-examples">
+                <h5>Examples:</h5>
+                <div className="example-grid">
+                  <div className="example-item">
+                    <span className="base">talo</span> → <span className="partitive">talon</span>
+                  </div>
+                  <div className="example-item">
+                    <span className="base">koira</span> → <span className="partitive">koiran</span>
+                  </div>
+                  <div className="example-item">
+                    <span className="base">vesi</span> → <span className="partitive">veden</span>
+                  </div>
+                  <div className="example-item">
+                    <span className="base">nainen</span> → <span className="partitive">naisen</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Rule Selection */}
+          <div className="partitive-rule-selector">
+            <h3>Select Word Types to Practice</h3>
+            <div className="partitive-rule-grid">
+              {genitiveRules.map((rule) => {
+                const isSelected = selectedGenitiveRules.includes(rule.id);
+                
+                return (
+                  <button
+                    key={rule.id}
+                    className={`partitive-rule-btn ${isSelected ? 'selected' : ''}`}
+                    onClick={() => {
+                      if (isSelected) {
+                        if (selectedGenitiveRules.length > 1) {
+                          onSelectGenitiveRules(selectedGenitiveRules.filter(r => r !== rule.id));
+                        }
+                      } else {
+                        onSelectGenitiveRules([...selectedGenitiveRules, rule.id]);
+                      }
+                    }}
+                    style={{ '--rule-color': rule.color } as React.CSSProperties}
+                  >
+                    <div className="rule-header">
+                      <span className="rule-name">{rule.name}</span>
+                    </div>
+                    <span className="rule-description">{rule.description}</span>
+                    <span className="rule-formation">{rule.formationSingular}</span>
+                    <span className="rule-example">{rule.examples[0]}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="selected-info">
+              Selected: {selectedGenitiveRules.length} rule{selectedGenitiveRules.length !== 1 ? 's' : ''} ({getGenitiveWordCount(selectedGenitiveRules)} words)
+            </p>
+          </div>
+
+          {/* Game Modes */}
+          <div className="menu-modes partitive-modes">
+            <button
+              className="mode-button genitive-mode"
+              onClick={() => onStartGenitiveSession(selectedGenitiveRules, false)}
+              disabled={selectedGenitiveRules.length === 0}
+            >
+              <div className="mode-info">
+                <span className="mode-name"><PencilIcon size={18} /> Genetiivi (Singular)</span>
+                <span className="mode-desc">See a word, write its singular genitive form</span>
+              </div>
+              <div className="mode-best">
+                <span className="word-count">{getGenitiveWordCount(selectedGenitiveRules)} words</span>
+              </div>
+            </button>
+
+            <button
+              className="mode-button genitive-mode plural"
+              onClick={() => onStartGenitiveSession(selectedGenitiveRules, true)}
+              disabled={selectedGenitiveRules.length === 0}
+            >
+              <div className="mode-info">
+                <span className="mode-name"><PencilIcon size={18} /> Genetiivi Monikko (Plural)</span>
+                <span className="mode-desc">See a word, write its plural genitive form</span>
+              </div>
+              <div className="mode-best">
+                <span className="word-count">{getGenitiveWordCount(selectedGenitiveRules)} words</span>
+              </div>
+            </button>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'stem' && (
+        <>
+          <p className="menu-subtitle">Master Finnish word stems (vartalo) - the foundation for all case endings</p>
+
+          {/* Stem Information Card */}
+          <div className="partitive-info-section">
+            <div className="partitive-reference-card">
+              <h4>Vartalo (Word Stem)</h4>
+              <div className="partitive-ending-info">
+                <div className="ending-group">
+                  <span className="ending-label">How to find:</span>
+                  <span className="ending-value">Remove -n from genitive singular</span>
+                </div>
+                <div className="ending-group">
+                  <span className="ending-label">Purpose:</span>
+                  <span className="ending-value">Base for adding case endings</span>
+                </div>
+              </div>
+              
+              <div className="partitive-uses">
+                <h5>Why stems matter:</h5>
+                <ul className="partitive-rules">
+                  <li><strong>Case endings attach to stems:</strong> talossa, talosta, taloon</li>
+                  <li><strong>Consonant gradation shows in stems:</strong> pöytä → pöydä-</li>
+                  <li><strong>Vowel changes visible:</strong> vesi → vede-, nainen → naise-</li>
+                  <li><strong>Essential for all declension:</strong> partitive, genitive, etc.</li>
+                </ul>
+              </div>
+
+              <div className="partitive-examples">
+                <h5>Common Patterns:</h5>
+                <div className="example-grid">
+                  <div className="example-item">
+                    <span className="base">talo</span> → <span className="partitive">talo-</span>
+                    <span className="example-note">no change</span>
+                  </div>
+                  <div className="example-item">
+                    <span className="base">pöytä</span> → <span className="partitive">pöydä-</span>
+                    <span className="example-note">t → d</span>
+                  </div>
+                  <div className="example-item">
+                    <span className="base">nainen</span> → <span className="partitive">naise-</span>
+                    <span className="example-note">nen → se</span>
+                  </div>
+                  <div className="example-item">
+                    <span className="base">huone</span> → <span className="partitive">huonee-</span>
+                    <span className="example-note">e doubles</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Rule Selection */}
+          <div className="partitive-rule-selector">
+            <h3>Select Stem Types to Practice</h3>
+            <div className="partitive-rule-grid">
+              {stemRules.map((rule) => {
+                const isSelected = selectedStemRules.includes(rule.id);
+                
+                return (
+                  <button
+                    key={rule.id}
+                    className={`partitive-rule-btn ${isSelected ? 'selected' : ''}`}
+                    onClick={() => {
+                      if (isSelected) {
+                        if (selectedStemRules.length > 1) {
+                          onSelectStemRules(selectedStemRules.filter(r => r !== rule.id));
+                        }
+                      } else {
+                        onSelectStemRules([...selectedStemRules, rule.id]);
+                      }
+                    }}
+                    style={{ '--rule-color': rule.color } as React.CSSProperties}
+                  >
+                    <div className="rule-header">
+                      <span className="rule-name">{rule.name}</span>
+                      {isSelected && <CheckIcon size={14} color="#4caf50" />}
+                    </div>
+                    <span className="rule-finnish-label">{rule.finnishName}</span>
+                    <span className="rule-description">{rule.description}</span>
+                    <span className="rule-formation">{rule.formation}</span>
+                    <div className="rule-examples-list">
+                      {rule.examples.slice(0, 2).map((ex, i) => (
+                        <span key={i} className="rule-example">{ex}</span>
+                      ))}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="selected-info">
+              Selected: {selectedStemRules.length} rule{selectedStemRules.length !== 1 ? 's' : ''} ({getStemWordCount(selectedStemRules)} words)
+            </p>
+          </div>
+
+          {/* Game Mode */}
+          <div className="menu-modes partitive-modes">
+            <button
+              className="mode-button stem-mode"
+              onClick={() => onStartStemSession(selectedStemRules)}
+              disabled={selectedStemRules.length === 0}
+            >
+              <div className="mode-info">
+                <span className="mode-name"><PencilIcon size={18} /> Harjoittele Vartaloa</span>
+                <span className="mode-desc">See a word, write its stem form (nominative → vartalo)</span>
+              </div>
+              <div className="mode-best">
+                <span className="word-count">{getStemWordCount(selectedStemRules)} words</span>
               </div>
             </button>
           </div>
@@ -605,6 +1028,21 @@ export function Menu({
               </div>
             </button>
 
+            {/* Present Negative Mode */}
+            <button
+              className="mode-button verb-type negative"
+              onClick={() => onStartVerbTypeSession('negative', selectedVerbTypes)}
+              disabled={selectedVerbTypes.length === 0}
+            >
+              <div className="mode-info">
+                <span className="mode-name">🚫 Kieltomuoto (Present Negative)</span>
+                <span className="mode-desc">Write all 6 negative present forms (en puhu, et puhu...)</span>
+              </div>
+              <div className="mode-best">
+                <span className="word-count">{verbsByTypeCount} verbs × 6 forms</span>
+              </div>
+            </button>
+
             {/* Past Simple Mode */}
             <button
               className="mode-button verb-type"
@@ -614,6 +1052,21 @@ export function Menu({
               <div className="mode-info">
                 <span className="mode-name">📜 Imperfekti (Past Simple)</span>
                 <span className="mode-desc">Write all 6 past tense forms for each verb</span>
+              </div>
+              <div className="mode-best">
+                <span className="word-count">{verbsByTypeCount} verbs × 6 forms</span>
+              </div>
+            </button>
+
+            {/* Past Negative Mode */}
+            <button
+              className="mode-button verb-type negative"
+              onClick={() => onStartVerbTypeSession('imperfectNegative', selectedVerbTypes)}
+              disabled={selectedVerbTypes.length === 0}
+            >
+              <div className="mode-info">
+                <span className="mode-name">🚫📜 Imperfektin Kielto (Past Negative)</span>
+                <span className="mode-desc">Write all 6 negative past forms (en puhunut, et puhunut...)</span>
               </div>
               <div className="mode-best">
                 <span className="word-count">{verbsByTypeCount} verbs × 6 forms</span>
