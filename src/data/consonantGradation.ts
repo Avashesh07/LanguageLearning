@@ -1,7 +1,20 @@
-import type { ConsonantGradationQuestion } from '../types';
-
 // Consonant Gradation Learning Structure
 // Based on: https://uusikielemme.fi/finnish-grammar/consonant-gradation/consonant-gradation-astevaihtelu-kpt-vaihtelu
+
+// Local type for consonant gradation questions
+export interface ConsonantGradationQuestion {
+  id: string;
+  type: 'fill-blank';
+  strongForm: string;
+  weakForm: string;
+  context: string;
+  rule: string;
+  category: 'noun' | 'verb';
+  blankForm: string;
+  expectedAnswer: string;
+  caseInfo?: string;
+  person?: string;
+}
 
 export interface GradationRule {
   id: string;

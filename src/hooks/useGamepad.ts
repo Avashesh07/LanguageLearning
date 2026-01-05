@@ -53,10 +53,10 @@ export function useGamepad({
   repeatRate = DEFAULT_REPEAT_RATE,
 }: UseGamepadOptions = {}) {
   const prevState = useRef<GamepadState | null>(null);
-  const repeatTimers = useRef<Record<string, NodeJS.Timeout>>({});
+  const repeatTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const lastNavigateTime = useRef<Record<string, number>>({});
   const isFirstPress = useRef<Record<string, boolean>>({});
-  const frameRef = useRef<number>();
+  const frameRef = useRef<number | undefined>(undefined);
 
   const getGamepadState = useCallback((): GamepadState | null => {
     const gamepads = navigator.getGamepads();

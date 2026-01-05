@@ -1,37 +1,27 @@
 // CSV Database for Finnish Verb Arena
-// Uses a backend server to persist data to a CSV file in the project folder
-// This ensures data persists even when browser data is wiped
+// Uses localStorage as the primary storage mechanism
+// The backend CSV integration has been deprecated
 
-import type { PlayerState, TimeRecord, LevelProgress, VerbLevel, GameMode, TavoiteProgress } from '../types';
+import type { PlayerState, TimeRecord, GameMode, TavoiteProgress } from '../types';
 
 const API_BASE = '/api';
 
-// Convert PlayerState to CSV format
+// Convert PlayerState to CSV format (simplified - only tavoite progress and best times)
 function playerStateToCSV(state: PlayerState): string {
-  const headers = ['Type', 'Level', 'CompletionType', 'Mode', 'Levels', 'TimeMs', 'Date', 'Accuracy', 'VerbCount', 'TavoiteId'];
+  const headers = ['Type', 'Mode', 'TimeMs', 'Date', 'Accuracy', 'VerbCount', 'TavoiteId', 'VerbTypes'];
   const rows: string[][] = [];
-
-  // Add level progress rows - one row per completion type
-  state.levelProgress.forEach((lp) => {
-    rows.push(['level-progress', lp.level, 'recallCompleted', '', '', '', '', '', lp.recallCompleted ? 'true' : 'false', '']);
-    rows.push(['level-progress', lp.level, 'activeRecallCompleted', '', '', '', '', '', lp.activeRecallCompleted ? 'true' : 'false', '']);
-    rows.push(['level-progress', lp.level, 'conjugationCompleted', '', '', '', '', '', lp.conjugationCompleted ? 'true' : 'false', '']);
-    rows.push(['level-progress', lp.level, 'imperfectCompleted', '', '', '', '', '', lp.imperfectCompleted ? 'true' : 'false', '']);
-  });
 
   // Add best times rows
   state.bestTimes.forEach((bt) => {
     rows.push([
       'best-time',
-      '',
-      '',
       bt.mode,
-      bt.levels.join('+'),
       bt.timeMs.toString(),
       bt.date,
       bt.accuracy.toString(),
       bt.verbCount.toString(),
       '',
+      bt.verbTypes?.join('+') || '',
     ]);
   });
 
@@ -41,14 +31,12 @@ function playerStateToCSV(state: PlayerState): string {
       rows.push([
         'tavoite-progress',
         '',
-        'activeRecallCompleted',
-        '',
-        '',
         tp.bestTimeMs?.toString() || '',
         tp.bestDate || '',
         '',
         tp.activeRecallCompleted ? 'true' : 'false',
         tp.tavoiteId.toString(),
+        '',
       ]);
     });
   }
@@ -64,7 +52,6 @@ function csvToPlayerState(csv: string): PlayerState | null {
     if (lines.length < 2) return null;
 
     const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, ''));
-    const levelProgressMap = new Map<VerbLevel, Partial<LevelProgress>>();
     const bestTimes: TimeRecord[] = [];
     const tavoiteProgressMap = new Map<number, TavoiteProgress>();
 
@@ -92,32 +79,15 @@ function csvToPlayerState(csv: string): PlayerState | null {
         row[header] = (values[idx] || '').replace(/^"|"$/g, '');
       });
 
-      if (row.Type === 'level-progress' && row.Level && row.CompletionType) {
-        const level = row.Level as VerbLevel;
-        if (!levelProgressMap.has(level)) {
-          levelProgressMap.set(level, { level });
-        }
-        const progress = levelProgressMap.get(level)!;
-        const isCompleted = row.VerbCount === 'true';
-        
-        // Set the specific completion type
-        if (row.CompletionType === 'recallCompleted') {
-          progress.recallCompleted = isCompleted;
-        } else if (row.CompletionType === 'activeRecallCompleted') {
-          progress.activeRecallCompleted = isCompleted;
-        } else if (row.CompletionType === 'conjugationCompleted') {
-          progress.conjugationCompleted = isCompleted;
-        } else if (row.CompletionType === 'imperfectCompleted') {
-          progress.imperfectCompleted = isCompleted;
-        }
-      } else if (row.Type === 'best-time' && row.Mode) {
+      if (row.Type === 'best-time' && row.Mode) {
+        const verbTypes = row.VerbTypes ? row.VerbTypes.split('+').map(Number).filter(n => !isNaN(n)) : undefined;
         bestTimes.push({
           mode: row.Mode as GameMode,
-          levels: row.Levels ? row.Levels.split('+') as VerbLevel[] : [],
           timeMs: parseInt(row.TimeMs) || 0,
           date: row.Date || '',
           accuracy: parseInt(row.Accuracy) || 0,
           verbCount: parseInt(row.VerbCount) || 0,
+          verbTypes: verbTypes && verbTypes.length > 0 ? verbTypes : undefined,
         });
       } else if (row.Type === 'tavoite-progress' && row.TavoiteId) {
         const tavoiteId = parseInt(row.TavoiteId);
@@ -132,17 +102,12 @@ function csvToPlayerState(csv: string): PlayerState | null {
       }
     }
 
-    const levelProgress: LevelProgress[] = Array.from(levelProgressMap.values()).map(lp => ({
-      level: lp.level!,
-      recallCompleted: lp.recallCompleted || false,
-      activeRecallCompleted: lp.activeRecallCompleted || false,
-      conjugationCompleted: lp.conjugationCompleted || false,
-      imperfectCompleted: lp.imperfectCompleted || false,
-    }));
-
     const tavoiteProgress: TavoiteProgress[] = Array.from(tavoiteProgressMap.values());
 
-    return { levelProgress, bestTimes, tavoiteProgress: tavoiteProgress.length > 0 ? tavoiteProgress : undefined };
+    return { 
+      bestTimes, 
+      tavoiteProgress: tavoiteProgress.length > 0 ? tavoiteProgress : undefined 
+    };
   } catch (error) {
     console.error('Failed to parse CSV:', error);
     return null;
@@ -201,7 +166,7 @@ export async function loadFromCSV(): Promise<PlayerState | null> {
     const saved = localStorage.getItem('finnish-verb-arena-v4');
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed.levelProgress) && Array.isArray(parsed.bestTimes)) {
+      if (Array.isArray(parsed.bestTimes)) {
         console.log('📦 Loaded progress from localStorage backup');
         return parsed;
       }
