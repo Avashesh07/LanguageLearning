@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { PlayerState, CaseCategory, PartitiveRule, PluralRule, GenitiveRule, StemRule, LyricsSubMode } from '../types';
+import type { PlayerState, CaseCategory, PartitiveRule, PluralRule, GenitiveRule, PikkusanaCategory, LyricsSubMode, QuestionCategory, QuestionSubMode } from '../types';
 import { verbs, verbTypeInfo } from '../data/verbs';
 import type { Tavoite } from '../data/tavoiteVocabulary';
 import type { SM2Chapter, SM2Cycle } from '../data/suomenMestari2';
@@ -7,8 +7,10 @@ import type { CaseGroup } from '../data/finnishCases';
 import type { PartitiveRuleInfo } from '../data/partitiveData';
 import type { PluralRuleInfo } from '../data/pluralData';
 import type { GenitiveRuleInfo } from '../data/genitiveData';
-import type { StemRuleInfo } from '../data/stemData';
+import type { PikkusanaCategoryInfo } from '../data/pikkusanat';
 import type { Song } from '../data/songs';
+import type { QuestionCategoryInfo } from '../data/questionWords';
+import { QUESTION_WORDS } from '../data/questionWords';
 import { TargetIcon, BookIcon, OpenBookIcon, PencilIcon, CheckIcon, MapPinIcon } from './Icons';
 
 interface MenuProps {
@@ -62,12 +64,12 @@ interface MenuProps {
   onStartGenitiveSession: (rules: GenitiveRule[], isPlural?: boolean) => void;
   getGenitiveWordCount: (rules: GenitiveRule[]) => number;
   genitiveRules: GenitiveRuleInfo[];
-  // Stem props
-  selectedStemRules: StemRule[];
-  onSelectStemRules: (rules: StemRule[]) => void;
-  onStartStemSession: (rules: StemRule[]) => void;
-  getStemWordCount: (rules: StemRule[]) => number;
-  stemRules: StemRuleInfo[];
+  // Pikkusanat props
+  selectedPikkusanaCategories: PikkusanaCategory[];
+  onSelectPikkusanaCategories: (categories: PikkusanaCategory[]) => void;
+  onStartPikkusanatSession: (categories: PikkusanaCategory[]) => void;
+  getPikkusanaWordCount: (categories: PikkusanaCategory[]) => number;
+  pikkusanaCategories: PikkusanaCategoryInfo[];
   // Lyrics props
   selectedSongId: string;
   onSelectSongId: (songId: string) => void;
@@ -76,9 +78,17 @@ interface MenuProps {
   onStartLyricsSession: (songId: string, mode: LyricsSubMode) => void;
   getSongInfo: (songId: string) => { title: string; artist: string; wordCount: number; lineCount: number; difficulty: string } | null;
   allSongs: Song[];
+  // Question Words props
+  selectedQuestionCategories: QuestionCategory[];
+  onSelectQuestionCategories: (categories: QuestionCategory[]) => void;
+  selectedQuestionSubMode: QuestionSubMode;
+  onSelectQuestionSubMode: (mode: QuestionSubMode) => void;
+  onStartQuestionWordSession: (categories: QuestionCategory[], subMode: QuestionSubMode) => void;
+  getQuestionWordCount: (categories: QuestionCategory[]) => number;
+  questionCategories: QuestionCategoryInfo[];
   // Tab management
-  initialTab?: 'verbs' | 'vocabulary' | 'cases' | 'partitive' | 'plural' | 'genitive' | 'stem' | 'lyrics';
-  onTabChange?: (tab: 'verbs' | 'vocabulary' | 'cases' | 'partitive' | 'plural' | 'genitive' | 'stem' | 'lyrics') => void;
+  initialTab?: 'verbs' | 'vocabulary' | 'cases' | 'partitive' | 'plural' | 'genitive' | 'pikkusanat' | 'lyrics' | 'questions';
+  onTabChange?: (tab: 'verbs' | 'vocabulary' | 'cases' | 'partitive' | 'plural' | 'genitive' | 'pikkusanat' | 'lyrics' | 'questions') => void;
 }
 
 const VERB_TYPES = [1, 2, 3, 4, 5, 6] as const;
@@ -124,11 +134,11 @@ export function Menu({
   onStartGenitiveSession,
   getGenitiveWordCount,
   genitiveRules,
-  selectedStemRules,
-  onSelectStemRules,
-  onStartStemSession,
-  getStemWordCount,
-  stemRules,
+  selectedPikkusanaCategories,
+  onSelectPikkusanaCategories,
+  onStartPikkusanatSession,
+  getPikkusanaWordCount,
+  pikkusanaCategories,
   selectedSongId,
   onSelectSongId,
   selectedLyricsMode,
@@ -136,17 +146,24 @@ export function Menu({
   onStartLyricsSession,
   getSongInfo,
   allSongs,
+  selectedQuestionCategories,
+  onSelectQuestionCategories,
+  selectedQuestionSubMode,
+  onSelectQuestionSubMode,
+  onStartQuestionWordSession,
+  getQuestionWordCount,
+  questionCategories,
   initialTab = 'verbs',
   onTabChange,
 }: MenuProps) {
-  const [activeTab, setActiveTab] = useState<'verbs' | 'vocabulary' | 'cases' | 'partitive' | 'plural' | 'genitive' | 'stem' | 'lyrics'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'verbs' | 'vocabulary' | 'cases' | 'partitive' | 'plural' | 'genitive' | 'pikkusanat' | 'lyrics' | 'questions'>(initialTab);
   
   // Update local state when initialTab changes (e.g., when returning from quiz)
   useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab]);
   
-  const handleTabChange = (tab: 'verbs' | 'vocabulary' | 'cases' | 'partitive' | 'plural' | 'genitive' | 'stem' | 'lyrics') => {
+  const handleTabChange = (tab: 'verbs' | 'vocabulary' | 'cases' | 'partitive' | 'plural' | 'genitive' | 'pikkusanat' | 'lyrics' | 'questions') => {
     setActiveTab(tab);
     onTabChange?.(tab);
   };
@@ -263,16 +280,22 @@ export function Menu({
           <TargetIcon size={18} /> Genetiivi
         </button>
         <button 
-          className={`tab-btn ${activeTab === 'stem' ? 'active' : ''}`}
-          onClick={() => handleTabChange('stem')}
+          className={`tab-btn ${activeTab === 'pikkusanat' ? 'active' : ''}`}
+          onClick={() => handleTabChange('pikkusanat')}
         >
-          <TargetIcon size={18} /> Vartalo
+          <TargetIcon size={18} /> Pikkusanat
         </button>
         <button 
           className={`tab-btn ${activeTab === 'lyrics' ? 'active' : ''}`}
           onClick={() => handleTabChange('lyrics')}
         >
           🎵 Song Lyrics
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'questions' ? 'active' : ''}`}
+          onClick={() => handleTabChange('questions')}
+        >
+          ❓ Kysymyssanat
         </button>
       </div>
 
@@ -738,115 +761,109 @@ export function Menu({
         </>
       )}
 
-      {activeTab === 'stem' && (
+      {activeTab === 'pikkusanat' && (
         <>
-          <p className="menu-subtitle">Master Finnish word stems (vartalo) - the foundation for all case endings</p>
+          <p className="menu-subtitle">Learn the small words that make Finnish sentences flow naturally</p>
 
-          {/* Stem Information Card */}
+          {/* Pikkusanat Information Card */}
           <div className="partitive-info-section">
             <div className="partitive-reference-card">
-              <h4>Vartalo (Word Stem)</h4>
+              <h4>Pikkusanat (Small Words)</h4>
               <div className="partitive-ending-info">
                 <div className="ending-group">
-                  <span className="ending-label">How to find:</span>
-                  <span className="ending-value">Remove -n from genitive singular</span>
+                  <span className="ending-label">What are they:</span>
+                  <span className="ending-value">Filler words, connectors, and particles</span>
                 </div>
                 <div className="ending-group">
                   <span className="ending-label">Purpose:</span>
-                  <span className="ending-value">Base for adding case endings</span>
+                  <span className="ending-value">Make sentences sound natural and fluent</span>
                 </div>
               </div>
               
               <div className="partitive-uses">
-                <h5>Why stems matter:</h5>
+                <h5>Why they matter:</h5>
                 <ul className="partitive-rules">
-                  <li><strong>Case endings attach to stems:</strong> talossa, talosta, taloon</li>
-                  <li><strong>Consonant gradation shows in stems:</strong> pöytä → pöydä-</li>
-                  <li><strong>Vowel changes visible:</strong> vesi → vede-, nainen → naise-</li>
-                  <li><strong>Essential for all declension:</strong> partitive, genitive, etc.</li>
+                  <li><strong>Connect ideas:</strong> ja (and), mutta (but), koska (because)</li>
+                  <li><strong>Add nuance:</strong> ehkä (maybe), varmasti (certainly), melkein (almost)</li>
+                  <li><strong>Sound natural:</strong> no niin (well then), siis (so), niinku (like)</li>
+                  <li><strong>Express time:</strong> nyt (now), sitten (then), jo (already)</li>
                 </ul>
               </div>
 
               <div className="partitive-examples">
-                <h5>Common Patterns:</h5>
+                <h5>Example Usage:</h5>
                 <div className="example-grid">
                   <div className="example-item">
-                    <span className="base">talo</span> → <span className="partitive">talo-</span>
-                    <span className="example-note">no change</span>
+                    <span className="base">ehkä</span> → <span className="partitive">maybe</span>
+                    <span className="example-note">Ehkä huomenna.</span>
                   </div>
                   <div className="example-item">
-                    <span className="base">pöytä</span> → <span className="partitive">pöydä-</span>
-                    <span className="example-note">t → d</span>
+                    <span className="base">siis</span> → <span className="partitive">so, therefore</span>
+                    <span className="example-note">Sinä siis tulet?</span>
                   </div>
                   <div className="example-item">
-                    <span className="base">nainen</span> → <span className="partitive">naise-</span>
-                    <span className="example-note">nen → se</span>
+                    <span className="base">kuitenkin</span> → <span className="partitive">however</span>
+                    <span className="example-note">Olen kuitenkin onnellinen.</span>
                   </div>
                   <div className="example-item">
-                    <span className="base">huone</span> → <span className="partitive">huonee-</span>
-                    <span className="example-note">e doubles</span>
+                    <span className="base">melkein</span> → <span className="partitive">almost</span>
+                    <span className="example-note">Melkein unohdin!</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Rule Selection */}
+          {/* Category Selection */}
           <div className="partitive-rule-selector">
-            <h3>Select Stem Types to Practice</h3>
+            <h3>Select Categories to Practice</h3>
             <div className="partitive-rule-grid">
-              {stemRules.map((rule) => {
-                const isSelected = selectedStemRules.includes(rule.id);
+              {pikkusanaCategories.map((category) => {
+                const isSelected = selectedPikkusanaCategories.includes(category.id);
                 
                 return (
                   <button
-                    key={rule.id}
+                    key={category.id}
                     className={`partitive-rule-btn ${isSelected ? 'selected' : ''}`}
                     onClick={() => {
                       if (isSelected) {
-                        if (selectedStemRules.length > 1) {
-                          onSelectStemRules(selectedStemRules.filter(r => r !== rule.id));
+                        if (selectedPikkusanaCategories.length > 1) {
+                          onSelectPikkusanaCategories(selectedPikkusanaCategories.filter(c => c !== category.id));
                         }
                       } else {
-                        onSelectStemRules([...selectedStemRules, rule.id]);
+                        onSelectPikkusanaCategories([...selectedPikkusanaCategories, category.id]);
                       }
                     }}
-                    style={{ '--rule-color': rule.color } as React.CSSProperties}
+                    style={{ '--rule-color': category.color } as React.CSSProperties}
                   >
                     <div className="rule-header">
-                      <span className="rule-name">{rule.name}</span>
+                      <span className="rule-name">{category.name}</span>
                       {isSelected && <CheckIcon size={14} color="#4caf50" />}
                     </div>
-                    <span className="rule-finnish-label">{rule.finnishName}</span>
-                    <span className="rule-description">{rule.description}</span>
-                    <span className="rule-formation">{rule.formation}</span>
-                    <div className="rule-examples-list">
-                      {rule.examples.slice(0, 2).map((ex, i) => (
-                        <span key={i} className="rule-example">{ex}</span>
-                      ))}
-                    </div>
+                    <span className="rule-finnish-label">{category.finnishName}</span>
+                    <span className="rule-description">{category.description}</span>
                   </button>
                 );
               })}
             </div>
             <p className="selected-info">
-              Selected: {selectedStemRules.length} rule{selectedStemRules.length !== 1 ? 's' : ''} ({getStemWordCount(selectedStemRules)} words)
+              Selected: {selectedPikkusanaCategories.length} categor{selectedPikkusanaCategories.length !== 1 ? 'ies' : 'y'} ({getPikkusanaWordCount(selectedPikkusanaCategories)} words)
             </p>
           </div>
 
           {/* Game Mode */}
           <div className="menu-modes partitive-modes">
             <button
-              className="mode-button stem-mode"
-              onClick={() => onStartStemSession(selectedStemRules)}
-              disabled={selectedStemRules.length === 0}
+              className="mode-button pikkusanat-mode"
+              onClick={() => onStartPikkusanatSession(selectedPikkusanaCategories)}
+              disabled={selectedPikkusanaCategories.length === 0}
             >
               <div className="mode-info">
-                <span className="mode-name"><PencilIcon size={18} /> Harjoittele Vartaloa</span>
-                <span className="mode-desc">See a word, write its stem form (nominative → vartalo)</span>
+                <span className="mode-name"><PencilIcon size={18} /> Harjoittele Pikkusanoja</span>
+                <span className="mode-desc">See English meaning, write the Finnish small word</span>
               </div>
               <div className="mode-best">
-                <span className="word-count">{getStemWordCount(selectedStemRules)} words</span>
+                <span className="word-count">{getPikkusanaWordCount(selectedPikkusanaCategories)} words</span>
               </div>
             </button>
           </div>
@@ -977,6 +994,210 @@ export function Menu({
         </>
       )}
 
+      {activeTab === 'questions' && (
+        <>
+          <p className="menu-subtitle">Master Finnish question words - know instantly what's being asked</p>
+
+          {/* Quick Reference Card */}
+          <div className="qw-quick-ref">
+            <div className="qw-quick-ref-header">
+              <h3>Quick Reference</h3>
+              <span className="qw-quick-ref-hint">Core question words at a glance</span>
+            </div>
+            <div className="qw-quick-ref-grid">
+              <div className="qref-cell"><span className="qref-fi">mikä/mitä</span><span className="qref-en">what</span></div>
+              <div className="qref-cell"><span className="qref-fi">kuka/ketä</span><span className="qref-en">who</span></div>
+              <div className="qref-cell"><span className="qref-fi">missä/mistä/mihin</span><span className="qref-en">where</span></div>
+              <div className="qref-cell"><span className="qref-fi">milloin/koska</span><span className="qref-en">when</span></div>
+              <div className="qref-cell"><span className="qref-fi">miten/kuinka</span><span className="qref-en">how</span></div>
+              <div className="qref-cell"><span className="qref-fi">miksi</span><span className="qref-en">why</span></div>
+              <div className="qref-cell"><span className="qref-fi">kumpi</span><span className="qref-en">which (of 2)</span></div>
+              <div className="qref-cell"><span className="qref-fi">kenen</span><span className="qref-en">whose</span></div>
+              <div className="qref-cell"><span className="qref-fi">paljonko</span><span className="qref-en">how much</span></div>
+            </div>
+          </div>
+
+          {/* Full Study Reference */}
+          <div className="qw-study-section">
+            <div className="qw-study-header">
+              <h3>Study Reference</h3>
+              <span className="qw-study-hint">Click a category to explore all words</span>
+            </div>
+            
+            <div className="qw-study-categories">
+              {questionCategories.map((cat) => {
+                const wordsInCategory = QUESTION_WORDS.filter(w => w.category === cat.id);
+                
+                return (
+                  <details key={cat.id} className="qw-study-cat">
+                    <summary className="qw-cat-summary" style={{ '--cat-color': cat.color } as React.CSSProperties}>
+                      <div className="qw-cat-info">
+                        <span className="qw-cat-name">{cat.name}</span>
+                        <span className="qw-cat-finnish">{cat.finnishName}</span>
+                      </div>
+                      <span className="qw-cat-count">{wordsInCategory.length}</span>
+                    </summary>
+                    <div className="qw-cat-words">
+                      {wordsInCategory.map((word, idx) => (
+                        <div key={idx} className="qw-word-entry">
+                          <div className="qw-word-row">
+                            <span className="qw-word-fi">{word.finnish}</span>
+                            <span className="qw-word-divider"></span>
+                            <span className="qw-word-en">{word.english}</span>
+                          </div>
+                          <div className="qw-word-usage">{word.usage}</div>
+                          <div className="qw-word-example">
+                            <span className="qw-ex-fi">{word.example}</span>
+                            <span className="qw-ex-en">{word.exampleTranslation}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Category Selection for Quiz */}
+          <div className="question-category-selector">
+            <h3>Select Categories to Practice</h3>
+            <div className="question-category-grid">
+              {questionCategories.map((cat) => {
+                const isSelected = selectedQuestionCategories.includes(cat.id);
+                const wordCount = getQuestionWordCount([cat.id]);
+                
+                return (
+                  <button
+                    key={cat.id}
+                    className={`question-category-btn ${isSelected ? 'selected' : ''}`}
+                    onClick={() => {
+                      if (isSelected) {
+                        if (selectedQuestionCategories.length > 1) {
+                          onSelectQuestionCategories(selectedQuestionCategories.filter(c => c !== cat.id));
+                        }
+                      } else {
+                        onSelectQuestionCategories([...selectedQuestionCategories, cat.id]);
+                      }
+                    }}
+                    style={{ '--cat-color': cat.color } as React.CSSProperties}
+                  >
+                    <div className="question-cat-header">
+                      <span className="question-cat-name">{cat.name}</span>
+                    </div>
+                    <span className="question-cat-finnish">{cat.finnishName}</span>
+                    <span className="question-cat-desc">{cat.description}</span>
+                    <span className="question-cat-count">{wordCount} words</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="selection-actions">
+              <button 
+                className="select-all-btn"
+                onClick={() => onSelectQuestionCategories(questionCategories.map(c => c.id))}
+              >
+                Select All
+              </button>
+              <button 
+                className="clear-selection-btn"
+                onClick={() => onSelectQuestionCategories([questionCategories[0].id])}
+              >
+                Clear
+              </button>
+            </div>
+            <p className="selected-info">
+              Selected: {selectedQuestionCategories.length} categor{selectedQuestionCategories.length !== 1 ? 'ies' : 'y'} ({getQuestionWordCount(selectedQuestionCategories)} words)
+            </p>
+          </div>
+
+          {/* Mode Selection */}
+          <div className="question-mode-selector">
+            <h3>Choose Practice Mode</h3>
+            
+            <div className="qw-mode-cards">
+              {/* Intuitive Modes */}
+              <button
+                className={`qw-mode-card intuitive ${selectedQuestionSubMode === 'scenario' ? 'selected' : ''}`}
+                onClick={() => onSelectQuestionSubMode('scenario')}
+              >
+                <div className="qw-mode-badge">Recommended</div>
+                <div className="qw-mode-icon scenario-icon"></div>
+                <div className="qw-mode-content">
+                  <span className="qw-mode-title">Situation Match</span>
+                  <span className="qw-mode-subtitle">See a situation, pick the question</span>
+                </div>
+              </button>
+              
+              <button
+                className={`qw-mode-card intuitive ${selectedQuestionSubMode === 'answer-match' ? 'selected' : ''}`}
+                onClick={() => onSelectQuestionSubMode('answer-match')}
+              >
+                <div className="qw-mode-badge">Pattern Learning</div>
+                <div className="qw-mode-icon answer-icon"></div>
+                <div className="qw-mode-content">
+                  <span className="qw-mode-title">Answer Detective</span>
+                  <span className="qw-mode-subtitle">Deduce the question from the answer</span>
+                </div>
+              </button>
+              
+              <button
+                className={`qw-mode-card ${selectedQuestionSubMode === 'recognize' ? 'selected' : ''}`}
+                onClick={() => onSelectQuestionSubMode('recognize')}
+              >
+                <div className="qw-mode-icon recognize-icon"></div>
+                <div className="qw-mode-content">
+                  <span className="qw-mode-title">Recognition</span>
+                  <span className="qw-mode-subtitle">Finnish → English (multiple choice)</span>
+                </div>
+              </button>
+              
+              <button
+                className={`qw-mode-card ${selectedQuestionSubMode === 'recall' ? 'selected' : ''}`}
+                onClick={() => onSelectQuestionSubMode('recall')}
+              >
+                <div className="qw-mode-icon recall-icon"></div>
+                <div className="qw-mode-content">
+                  <span className="qw-mode-title">Active Recall</span>
+                  <span className="qw-mode-subtitle">English → Finnish (typing)</span>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Start Button */}
+          <div className="menu-modes question-modes">
+            <button
+              className="mode-button questions"
+              onClick={() => onStartQuestionWordSession(selectedQuestionCategories, selectedQuestionSubMode)}
+              disabled={selectedQuestionCategories.length === 0}
+            >
+              <div className="mode-info">
+                <span className="mode-name">
+                  {selectedQuestionSubMode === 'scenario' && 'Start Situation Match'}
+                  {selectedQuestionSubMode === 'answer-match' && 'Start Answer Detective'}
+                  {selectedQuestionSubMode === 'recognize' && 'Start Recognition'}
+                  {selectedQuestionSubMode === 'recall' && 'Start Active Recall'}
+                </span>
+                <span className="mode-desc">
+                  {selectedQuestionSubMode === 'scenario' && 'Learn which question fits each situation'}
+                  {selectedQuestionSubMode === 'answer-match' && 'Deduce the question from the answer'}
+                  {selectedQuestionSubMode === 'recognize' && 'Pick the correct meaning'}
+                  {selectedQuestionSubMode === 'recall' && 'Type the Finnish question word'}
+                </span>
+              </div>
+              <div className="mode-best">
+                <span className="word-count">
+                  {(selectedQuestionSubMode === 'scenario' || selectedQuestionSubMode === 'answer-match') 
+                    ? 'Intuitive learning' 
+                    : `${getQuestionWordCount(selectedQuestionCategories)} words`}
+                </span>
+              </div>
+            </button>
+          </div>
+        </>
+      )}
+
       {activeTab === 'verbs' && (
         <>
           <p className="menu-subtitle">Master Finnish verbs by type - conjugate all forms</p>
@@ -1067,6 +1288,96 @@ export function Menu({
               <div className="mode-info">
                 <span className="mode-name">🚫📜 Imperfektin Kielto (Past Negative)</span>
                 <span className="mode-desc">Write all 6 negative past forms (en puhunut, et puhunut...)</span>
+              </div>
+              <div className="mode-best">
+                <span className="word-count">{verbsByTypeCount} verbs × 6 forms</span>
+              </div>
+            </button>
+
+            {/* Imperative Mode */}
+            <button
+              className="mode-button verb-type imperative"
+              onClick={() => onStartVerbTypeSession('imperative', selectedVerbTypes)}
+              disabled={selectedVerbTypes.length === 0}
+            >
+              <div className="mode-info">
+                <span className="mode-name">👆 Imperatiivi (Commands)</span>
+                <span className="mode-desc">Write command forms: puhu!, puhukaamme!, puhukaa!</span>
+              </div>
+              <div className="mode-best">
+                <span className="word-count">{verbsByTypeCount} verbs × 3 forms</span>
+              </div>
+            </button>
+
+            {/* Imperative Negative Mode */}
+            <button
+              className="mode-button verb-type negative imperative"
+              onClick={() => onStartVerbTypeSession('imperativeNegative', selectedVerbTypes)}
+              disabled={selectedVerbTypes.length === 0}
+            >
+              <div className="mode-info">
+                <span className="mode-name">🚫👆 Imperatiivin Kielto (Neg. Commands)</span>
+                <span className="mode-desc">Write negative commands: älä puhu!, älkää puhuko!</span>
+              </div>
+              <div className="mode-best">
+                <span className="word-count">{verbsByTypeCount} verbs × 3 forms</span>
+              </div>
+            </button>
+
+            {/* Conditional Mode */}
+            <button
+              className="mode-button verb-type conditional"
+              onClick={() => onStartVerbTypeSession('conditional', selectedVerbTypes)}
+              disabled={selectedVerbTypes.length === 0}
+            >
+              <div className="mode-info">
+                <span className="mode-name">💭 Konditionaali (Would)</span>
+                <span className="mode-desc">Write conditional forms: puhuisin, puhuisit, puhuisi...</span>
+              </div>
+              <div className="mode-best">
+                <span className="word-count">{verbsByTypeCount} verbs × 6 forms</span>
+              </div>
+            </button>
+
+            {/* Conditional Negative Mode */}
+            <button
+              className="mode-button verb-type negative conditional"
+              onClick={() => onStartVerbTypeSession('conditionalNegative', selectedVerbTypes)}
+              disabled={selectedVerbTypes.length === 0}
+            >
+              <div className="mode-info">
+                <span className="mode-name">🚫💭 Konditionaalin Kielto</span>
+                <span className="mode-desc">Write negative conditional: en puhuisi, et puhuisi...</span>
+              </div>
+              <div className="mode-best">
+                <span className="word-count">{verbsByTypeCount} verbs × 6 forms</span>
+              </div>
+            </button>
+
+            {/* Conditional Perfect Mode */}
+            <button
+              className="mode-button verb-type conditional-perfect"
+              onClick={() => onStartVerbTypeSession('conditionalPerfect', selectedVerbTypes)}
+              disabled={selectedVerbTypes.length === 0}
+            >
+              <div className="mode-info">
+                <span className="mode-name">💭✨ Konditionaalin Perfekti (Would Have)</span>
+                <span className="mode-desc">Write: olisin puhunut, olisit puhunut...</span>
+              </div>
+              <div className="mode-best">
+                <span className="word-count">{verbsByTypeCount} verbs × 6 forms</span>
+              </div>
+            </button>
+
+            {/* Conditional Perfect Negative Mode */}
+            <button
+              className="mode-button verb-type negative conditional-perfect"
+              onClick={() => onStartVerbTypeSession('conditionalPerfectNegative', selectedVerbTypes)}
+              disabled={selectedVerbTypes.length === 0}
+            >
+              <div className="mode-info">
+                <span className="mode-name">🚫💭✨ Kond. Perfektin Kielto</span>
+                <span className="mode-desc">Write: en olisi puhunut, et olisi puhunut...</span>
               </div>
               <div className="mode-best">
                 <span className="word-count">{verbsByTypeCount} verbs × 6 forms</span>

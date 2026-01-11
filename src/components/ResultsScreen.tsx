@@ -1,4 +1,4 @@
-import type { PlayerState, GameMode, VocabularySessionState, CasesSessionState, VerbTypeSessionState, PartitiveSessionState, PluralSessionState, GenitiveSessionState, StemSessionState, LyricsSessionState } from '../types';
+import type { PlayerState, GameMode, VocabularySessionState, CasesSessionState, VerbTypeSessionState, PartitiveSessionState, PluralSessionState, GenitiveSessionState, PikkusanatSessionState, LyricsSessionState, QuestionWordSessionState } from '../types';
 import { StarIcon, TrophyIcon, MapPinIcon, TargetIcon } from './Icons';
 
 interface ResultsScreenProps {
@@ -13,8 +13,9 @@ interface ResultsScreenProps {
   partitiveSession?: PartitiveSessionState;
   pluralSession?: PluralSessionState;
   genitiveSession?: GenitiveSessionState;
-  stemSession?: StemSessionState;
+  pikkusanatSession?: PikkusanatSessionState;
   lyricsSession?: LyricsSessionState;
+  questionWordSession?: QuestionWordSessionState;
 }
 
 const MODE_NAMES: Record<GameMode, string> = {
@@ -28,13 +29,20 @@ const MODE_NAMES: Record<GameMode, string> = {
   'verb-type-negative': 'Present Negative Conjugation',
   'verb-type-imperfect': 'Past Tense Conjugation',
   'verb-type-imperfect-negative': 'Past Negative Conjugation',
+  'verb-type-imperative': 'Imperative (Commands)',
+  'verb-type-imperative-negative': 'Negative Imperative',
+  'verb-type-conditional': 'Conditional (Would)',
+  'verb-type-conditional-negative': 'Conditional Negative',
+  'verb-type-conditional-perfect': 'Conditional Perfect (Would Have)',
+  'verb-type-conditional-perfect-negative': 'Conditional Perfect Negative',
   'partitive': 'Partitive Case Practice',
   'partitive-plural': 'Partitive Plural Practice',
   'plural': 'Nominative Plural Practice',
   'genitive': 'Genitive Case Practice',
   'genitive-plural': 'Genitive Plural Practice',
-  'stem': 'Word Stem Practice',
+  'pikkusanat': 'Pikkusanat Practice',
   'lyrics': 'Song Lyrics Learning',
+  'question-words': 'Question Words Practice',
 };
 
 export function ResultsScreen({
@@ -49,20 +57,25 @@ export function ResultsScreen({
   partitiveSession,
   pluralSession,
   genitiveSession,
-  stemSession,
+  pikkusanatSession,
   lyricsSession,
+  questionWordSession,
 }: ResultsScreenProps) {
   // Handle different modes
   const isVocabularyMode = mode === 'vocabulary-recall' || mode === 'vocabulary-active-recall';
   const isMemoriseMode = mode === 'vocabulary-memorise';
   const isCasesMode = mode === 'cases-fill-blank' || mode === 'cases-fill-blank-plural';
   const isVerbTypeMode = mode === 'verb-type-present' || mode === 'verb-type-negative' || 
-                         mode === 'verb-type-imperfect' || mode === 'verb-type-imperfect-negative';
+                         mode === 'verb-type-imperfect' || mode === 'verb-type-imperfect-negative' ||
+                         mode === 'verb-type-imperative' || mode === 'verb-type-imperative-negative' ||
+                         mode === 'verb-type-conditional' || mode === 'verb-type-conditional-negative' ||
+                         mode === 'verb-type-conditional-perfect' || mode === 'verb-type-conditional-perfect-negative';
   const isPartitiveMode = mode === 'partitive' || mode === 'partitive-plural';
   const isPluralMode = mode === 'plural';
   const isGenitiveMode = mode === 'genitive' || mode === 'genitive-plural';
-  const isStemMode = mode === 'stem';
+  const isPikkusanatMode = mode === 'pikkusanat';
   const isLyricsMode = mode === 'lyrics';
+  const isQuestionWordsMode = mode === 'question-words';
   
   let timeMs: number;
   let isPerfect: boolean;
@@ -113,13 +126,13 @@ export function ResultsScreen({
     totalQuestions = genitiveSession.words.length;
     const totalAttempts = genitiveSession.words.reduce((sum, w) => sum + w.correctCount, 0) + genitiveSession.wrongCount;
     accuracy = totalAttempts > 0 ? Math.round(((totalAttempts - genitiveSession.wrongCount) / totalAttempts) * 100) : 100;
-  } else if (isStemMode && stemSession) {
-    timeMs = stemSession.endTime! - stemSession.startTime!;
-    isPerfect = stemSession.wrongCount === 0;
-    wrongCount = stemSession.wrongCount;
-    totalQuestions = stemSession.words.length;
-    const totalAttempts = stemSession.words.reduce((sum, w) => sum + w.correctCount, 0) + stemSession.wrongCount;
-    accuracy = totalAttempts > 0 ? Math.round(((totalAttempts - stemSession.wrongCount) / totalAttempts) * 100) : 100;
+  } else if (isPikkusanatMode && pikkusanatSession) {
+    timeMs = pikkusanatSession.endTime! - pikkusanatSession.startTime!;
+    isPerfect = pikkusanatSession.wrongCount === 0;
+    wrongCount = pikkusanatSession.wrongCount;
+    totalQuestions = pikkusanatSession.words.length;
+    const totalAttempts = pikkusanatSession.words.reduce((sum, w) => sum + w.correctCount, 0) + pikkusanatSession.wrongCount;
+    accuracy = totalAttempts > 0 ? Math.round(((totalAttempts - pikkusanatSession.wrongCount) / totalAttempts) * 100) : 100;
   } else if (isLyricsMode && lyricsSession) {
     timeMs = lyricsSession.endTime! - lyricsSession.startTime!;
     isPerfect = lyricsSession.wrongCount === 0;
@@ -129,6 +142,13 @@ export function ResultsScreen({
     const items = isWordMode ? lyricsSession.words : lyricsSession.lines;
     const totalAttempts = items.reduce((sum, item) => sum + item.correctCount, 0) + lyricsSession.wrongCount;
     accuracy = totalAttempts > 0 ? Math.round(((totalAttempts - lyricsSession.wrongCount) / totalAttempts) * 100) : 100;
+  } else if (isQuestionWordsMode && questionWordSession) {
+    timeMs = questionWordSession.endTime! - questionWordSession.startTime!;
+    isPerfect = questionWordSession.wrongCount === 0;
+    wrongCount = questionWordSession.wrongCount;
+    totalQuestions = questionWordSession.words.length;
+    const totalAttempts = questionWordSession.words.reduce((sum, w) => sum + w.correctCount, 0) + questionWordSession.wrongCount;
+    accuracy = totalAttempts > 0 ? Math.round(((totalAttempts - questionWordSession.wrongCount) / totalAttempts) * 100) : 100;
   } else {
     return null;
   }
@@ -142,14 +162,15 @@ export function ResultsScreen({
         {isPerfect ? 'PERFECT!' : 'COMPLETED'}
       </h1>
 
-      <div className={`results-mode ${isVocabularyMode || isMemoriseMode ? 'vocabulary' : ''} ${isCasesMode ? 'cases' : ''} ${isVerbTypeMode ? 'verb-type' : ''} ${isPartitiveMode ? 'partitive' : ''} ${isPluralMode ? 'plural' : ''} ${isGenitiveMode ? 'genitive' : ''} ${isStemMode ? 'stem' : ''} ${isLyricsMode ? 'lyrics' : ''}`}>
+      <div className={`results-mode ${isVocabularyMode || isMemoriseMode ? 'vocabulary' : ''} ${isCasesMode ? 'cases' : ''} ${isVerbTypeMode ? 'verb-type' : ''} ${isPartitiveMode ? 'partitive' : ''} ${isPluralMode ? 'plural' : ''} ${isGenitiveMode ? 'genitive' : ''} ${isPikkusanatMode ? 'pikkusanat' : ''} ${isLyricsMode ? 'lyrics' : ''} ${isQuestionWordsMode ? 'question-words' : ''}`}>
         {isCasesMode && <MapPinIcon size={20} />}
         {isVerbTypeMode && <TargetIcon size={20} />}
         {isPartitiveMode && <TargetIcon size={20} />}
         {isPluralMode && <TargetIcon size={20} />}
         {isGenitiveMode && <TargetIcon size={20} />}
-        {isStemMode && <TargetIcon size={20} />}
+        {isPikkusanatMode && <TargetIcon size={20} />}
         {isLyricsMode && '🎵'}
+        {isQuestionWordsMode && '❓'}
         {MODE_NAMES[mode]}
       </div>
 
@@ -185,11 +206,20 @@ export function ResultsScreen({
         </div>
       )}
 
-      {isStemMode && stemSession && (
+      {isPikkusanatMode && pikkusanatSession && (
         <div className="results-partitive-rules">
-          {stemSession.selectedRules.map((rule) => (
-            <span key={rule} className="rule-badge">{rule}</span>
+          {pikkusanatSession.selectedCategories.map((category) => (
+            <span key={category} className="rule-badge">{category}</span>
           ))}
+        </div>
+      )}
+
+      {isQuestionWordsMode && questionWordSession && (
+        <div className="results-question-info">
+          {questionWordSession.selectedCategories.map((cat) => (
+            <span key={cat} className="category-badge">{cat}</span>
+          ))}
+          <span className="mode-badge">{questionWordSession.subMode === 'recognize' ? 'Quick Recognition' : 'Active Recall'}</span>
         </div>
       )}
 
@@ -243,7 +273,7 @@ export function ResultsScreen({
 
         <div className="result-item">
           <span className="result-label">
-            {isVocabularyMode ? 'Words' : isCasesMode ? 'Sentences' : isVerbTypeMode ? 'Verbs' : isPartitiveMode ? 'Words' : isPluralMode ? 'Words' : isGenitiveMode ? 'Words' : isStemMode ? 'Words' : isLyricsMode ? (lyricsSession?.subMode === 'word-match' || lyricsSession?.subMode === 'word-recall' ? 'Words' : 'Lines') : 'Verbs'}
+            {isVocabularyMode ? 'Words' : isCasesMode ? 'Sentences' : isVerbTypeMode ? 'Verbs' : isPartitiveMode ? 'Words' : isPluralMode ? 'Words' : isGenitiveMode ? 'Words' : isPikkusanatMode ? 'Words' : isLyricsMode ? (lyricsSession?.subMode === 'word-match' || lyricsSession?.subMode === 'word-recall' ? 'Words' : 'Lines') : 'Verbs'}
           </span>
           <span className="result-value">{totalQuestions}</span>
         </div>

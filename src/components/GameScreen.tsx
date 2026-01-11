@@ -5,7 +5,8 @@ import { CASES, CASE_GROUPS } from '../data/finnishCases';
 import { PARTITIVE_RULES } from '../data/partitiveData';
 import { PLURAL_RULES } from '../data/pluralData';
 import { GENITIVE_RULES } from '../data/genitiveData';
-import { STEM_RULES } from '../data/stemData';
+import { PIKKUSANA_CATEGORIES } from '../data/pikkusanat';
+import { QUESTION_CATEGORIES } from '../data/questionWords';
 import { CloseIcon, CheckIcon, MapPinIcon, GlobeIcon, EyeIcon } from './Icons';
 
 interface GameScreenProps {
@@ -30,11 +31,11 @@ export function GameScreen({
   const [showTranslation, setShowTranslation] = useState(false);
   const [selectedWords, setSelectedWords] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { feedback, mode, vocabularySession, currentVocabularyWord, casesSession, currentCaseSentence, verbTypeSession, partitiveSession, currentPartitiveWord, pluralSession, currentPluralWord, genitiveSession, currentGenitiveWord, stemSession, currentStemWord, lyricsSession, currentLyricsItem } = state;
+  const { feedback, mode, vocabularySession, currentVocabularyWord, casesSession, currentCaseSentence, verbTypeSession, partitiveSession, currentPartitiveWord, pluralSession, currentPluralWord, genitiveSession, currentGenitiveWord, pikkusanatSession, currentPikkusana, lyricsSession, currentLyricsItem, questionWordSession, currentQuestionWord, currentScenario, currentAnswerScenario } = state;
 
   useEffect(() => {
-    const startTime = vocabularySession?.startTime || casesSession?.startTime || verbTypeSession?.startTime || partitiveSession?.startTime || pluralSession?.startTime || genitiveSession?.startTime || stemSession?.startTime || lyricsSession?.startTime;
-    const isComplete = vocabularySession?.isComplete || casesSession?.isComplete || verbTypeSession?.isComplete || partitiveSession?.isComplete || pluralSession?.isComplete || genitiveSession?.isComplete || stemSession?.isComplete || lyricsSession?.isComplete;
+    const startTime = vocabularySession?.startTime || casesSession?.startTime || verbTypeSession?.startTime || partitiveSession?.startTime || pluralSession?.startTime || genitiveSession?.startTime || pikkusanatSession?.startTime || lyricsSession?.startTime || questionWordSession?.startTime;
+    const isComplete = vocabularySession?.isComplete || casesSession?.isComplete || verbTypeSession?.isComplete || partitiveSession?.isComplete || pluralSession?.isComplete || genitiveSession?.isComplete || pikkusanatSession?.isComplete || lyricsSession?.isComplete || questionWordSession?.isComplete;
     
     if (!startTime || isComplete) return;
 
@@ -43,7 +44,7 @@ export function GameScreen({
     }, 100);
 
     return () => clearInterval(interval);
-  }, [vocabularySession?.startTime, vocabularySession?.isComplete, casesSession?.startTime, casesSession?.isComplete, verbTypeSession?.startTime, verbTypeSession?.isComplete, partitiveSession?.startTime, partitiveSession?.isComplete, pluralSession?.startTime, pluralSession?.isComplete, genitiveSession?.startTime, genitiveSession?.isComplete, stemSession?.startTime, stemSession?.isComplete, lyricsSession?.startTime, lyricsSession?.isComplete]);
+  }, [vocabularySession?.startTime, vocabularySession?.isComplete, casesSession?.startTime, casesSession?.isComplete, verbTypeSession?.startTime, verbTypeSession?.isComplete, partitiveSession?.startTime, partitiveSession?.isComplete, pluralSession?.startTime, pluralSession?.isComplete, genitiveSession?.startTime, genitiveSession?.isComplete, pikkusanatSession?.startTime, pikkusanatSession?.isComplete, lyricsSession?.startTime, lyricsSession?.isComplete, questionWordSession?.startTime, questionWordSession?.isComplete]);
 
   useEffect(() => {
     if (!feedback && inputRef.current) {
@@ -819,19 +820,19 @@ export function GameScreen({
     );
   }
 
-  // Handle stem mode
-  if (mode === 'stem') {
-    if (!stemSession || !currentStemWord) return null;
+  // Handle pikkusanat mode
+  if (mode === 'pikkusanat') {
+    if (!pikkusanatSession || !currentPikkusana) return null;
     
-    const activeCount = stemSession.words.filter(w => !w.eliminated).length;
-    const eliminatedCount = stemSession.words.length - activeCount;
-    const currentWordState = stemSession.words[stemSession.currentWordIndex];
+    const activeCount = pikkusanatSession.words.filter(w => !w.eliminated).length;
+    const eliminatedCount = pikkusanatSession.words.length - activeCount;
+    const currentWordState = pikkusanatSession.words[pikkusanatSession.currentWordIndex];
     const hasWrongAnswer = currentWordState.wrongCount > 0;
     
-    const ruleInfo = STEM_RULES.find(r => r.id === currentStemWord.rule);
+    const categoryInfo = PIKKUSANA_CATEGORIES.find(c => c.id === currentPikkusana.category);
     
     return (
-      <div className="game-screen stem-mode">
+      <div className="game-screen pikkusanat-mode">
         <div className="game-header">
           <button className="quit-btn" onClick={onQuit}>
             <CloseIcon size={14} /> Quit
@@ -840,18 +841,18 @@ export function GameScreen({
           <div className="progress-stats">
             <span className="eliminated">{eliminatedCount}</span>
             <span className="separator">/</span>
-            <span className="total">{stemSession.words.length}</span>
+            <span className="total">{pikkusanatSession.words.length}</span>
           </div>
         </div>
 
-        <div className="game-stats-bar stem-stats">
+        <div className="game-stats-bar pikkusanat-stats">
           <div className="stat-item">
-            <span className="stat-label">Rule</span>
-            <span className="stat-value">{ruleInfo?.name || currentStemWord.rule}</span>
+            <span className="stat-label">Category</span>
+            <span className="stat-value">{categoryInfo?.name || currentPikkusana.category}</span>
           </div>
           <div className="stat-item">
             <span className="stat-label">Mistakes</span>
-            <span className="stat-value mistakes">{stemSession.wrongCount}</span>
+            <span className="stat-value mistakes">{pikkusanatSession.wrongCount}</span>
           </div>
           <div className="stat-item">
             <span className="stat-label">Remaining</span>
@@ -862,25 +863,27 @@ export function GameScreen({
         <div className="prompt-area">
           <div className="partitive-prompt-box">
             <div className="partitive-word-header">
-              <span className="partitive-nominative">{currentStemWord.nominative}</span>
-              <span className="partitive-translation">({currentStemWord.translation})</span>
+              <span className="partitive-nominative">{currentPikkusana.english}</span>
             </div>
             
             <div className="partitive-question">
-              <span className="partitive-label">Mikä on vartalo? (What is the stem?)</span>
+              <span className="partitive-label">Mikä on suomeksi? (What is it in Finnish?)</span>
             </div>
             
-            {hasWrongAnswer && currentStemWord.hint && (
+            {hasWrongAnswer && currentPikkusana.example && (
               <div className="partitive-hint">
-                <span className="hint-label">Hint:</span>
-                <span className="hint-text">{currentStemWord.hint}</span>
+                <span className="hint-label">Example:</span>
+                <span className="hint-text">{currentPikkusana.example}</span>
+                {currentPikkusana.exampleTranslation && (
+                  <span className="hint-translation">({currentPikkusana.exampleTranslation})</span>
+                )}
               </div>
             )}
             
-            {hasWrongAnswer && currentStemWord.genitive && (
-              <div className="partitive-hint genitive-reference">
-                <span className="hint-label">Genitive:</span>
-                <span className="hint-text">{currentStemWord.genitive} (remove -n to find stem)</span>
+            {hasWrongAnswer && currentPikkusana.notes && (
+              <div className="partitive-hint">
+                <span className="hint-label">Note:</span>
+                <span className="hint-text">{currentPikkusana.notes}</span>
               </div>
             )}
           </div>
@@ -893,7 +896,7 @@ export function GameScreen({
               type="text"
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
-              placeholder="Write the stem (vartalo)..."
+              placeholder="Write the Finnish word..."
               disabled={!!feedback}
               autoComplete="off"
               autoCapitalize="off"
@@ -943,6 +946,371 @@ export function GameScreen({
                 )}
               </>
             )}
+            
+            <button className="continue-btn" onClick={handleContinue}>
+              {feedback.isCorrect ? 'Continue' : 'Try Again'}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Handle question words mode
+  if (mode === 'question-words') {
+    if (!questionWordSession) return null;
+    
+    const subMode = questionWordSession.subMode;
+    const handleOptionClick = (option: string) => {
+      onSubmit(option);
+    };
+    
+    // Calculate progress based on mode
+    let activeCount = 0;
+    let totalCount = 0;
+    let hasWrongAnswer = false;
+    
+    if (subMode === 'scenario' && questionWordSession.scenarios) {
+      activeCount = questionWordSession.scenarios.filter(s => !s.eliminated).length;
+      totalCount = questionWordSession.scenarios.length;
+      const currentIdx = questionWordSession.currentScenarioIndex || 0;
+      hasWrongAnswer = questionWordSession.scenarios[currentIdx]?.wrongCount > 0;
+    } else if (subMode === 'answer-match' && questionWordSession.answerScenarios) {
+      activeCount = questionWordSession.answerScenarios.filter(a => !a.eliminated).length;
+      totalCount = questionWordSession.answerScenarios.length;
+      const currentIdx = questionWordSession.currentAnswerIndex || 0;
+      hasWrongAnswer = questionWordSession.answerScenarios[currentIdx]?.wrongCount > 0;
+    } else if (questionWordSession.words.length > 0) {
+      activeCount = questionWordSession.words.filter(w => !w.eliminated).length;
+      totalCount = questionWordSession.words.length;
+      hasWrongAnswer = questionWordSession.words[questionWordSession.currentWordIndex]?.wrongCount > 0;
+    }
+    
+    const eliminatedCount = totalCount - activeCount;
+    
+    // Get current category info
+    let categoryInfo = null;
+    if (currentScenario) {
+      categoryInfo = QUESTION_CATEGORIES.find(c => c.id === currentScenario.category);
+    } else if (currentAnswerScenario) {
+      categoryInfo = QUESTION_CATEGORIES.find(c => c.id === currentAnswerScenario.category);
+    } else if (currentQuestionWord) {
+      categoryInfo = QUESTION_CATEGORIES.find(c => c.id === currentQuestionWord.category);
+    }
+    
+    // ===== SCENARIO MODE =====
+    if (subMode === 'scenario' && currentScenario) {
+      return (
+        <div className="game-screen question-words-mode scenario-mode">
+          <div className="game-header">
+            <button className="quit-btn" onClick={onQuit}>
+              <CloseIcon size={14} /> Quit
+            </button>
+            <div className="timer">{formatTime(elapsedTime)}</div>
+            <div className="progress-stats">
+              <span className="eliminated">{eliminatedCount}</span>
+              <span className="separator">/</span>
+              <span className="total">{totalCount}</span>
+            </div>
+          </div>
+
+          <div className="qw-game-stats">
+            <div className="qw-stat-pill mode-pill scenario">Situation Match</div>
+            <div className="qw-stat-pill mistakes-pill">
+              <span className="pill-value">{questionWordSession.wrongCount}</span>
+              <span className="pill-label">mistakes</span>
+            </div>
+            <div className="qw-stat-pill remaining-pill">
+              <span className="pill-value">{activeCount}</span>
+              <span className="pill-label">left</span>
+            </div>
+          </div>
+
+          <div className="prompt-area">
+            <div className="scenario-prompt-box">
+              <div className="scenario-situation">{currentScenario.situation}</div>
+              <div className="scenario-context">{currentScenario.context}</div>
+              <div className="scenario-question">
+                <span className="scenario-ask">What question would you ask?</span>
+              </div>
+              
+              {hasWrongAnswer && currentScenario.hint && (
+                <div className="scenario-hint">
+                  <span className="hint-label">Hint:</span>
+                  <span className="hint-text">{currentScenario.hint}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="multiple-choice-area">
+            <div className="option-grid scenario-options">
+              {currentScenario.options.map((option, idx) => (
+                <button
+                  key={idx}
+                  className="option-btn finnish-option"
+                  onClick={() => handleOptionClick(option)}
+                  disabled={!!feedback}
+                >
+                  {option}?
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {feedback && (
+            <div className={`feedback ${feedback.isCorrect ? 'correct' : 'incorrect'}`}>
+              <div className="feedback-icon">
+                {feedback.isCorrect ? <CheckIcon size={24} /> : '✕'}
+              </div>
+              <div className="feedback-content">
+                <span className="feedback-title">
+                  {feedback.isCorrect ? 'Oikein!' : 'Väärin'}
+                </span>
+                {!feedback.isCorrect && (
+                  <>
+                    <div className="feedback-answer">
+                      <span className="user-answer">You picked: {feedback.userAnswer}</span>
+                      <span className="correct-answer">Correct: <strong>{feedback.correctAnswer}?</strong></span>
+                    </div>
+                    {feedback.rule && (
+                      <div className="feedback-hint">
+                        <span className="hint-text">{feedback.rule}</span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+              <button className="continue-btn" onClick={handleContinue}>
+                {feedback.isCorrect ? 'Next' : 'Try Again'}
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+    
+    // ===== ANSWER-MATCH MODE =====
+    if (subMode === 'answer-match' && currentAnswerScenario) {
+      return (
+        <div className="game-screen question-words-mode answer-mode">
+          <div className="game-header">
+            <button className="quit-btn" onClick={onQuit}>
+              <CloseIcon size={14} /> Quit
+            </button>
+            <div className="timer">{formatTime(elapsedTime)}</div>
+            <div className="progress-stats">
+              <span className="eliminated">{eliminatedCount}</span>
+              <span className="separator">/</span>
+              <span className="total">{totalCount}</span>
+            </div>
+          </div>
+
+          <div className="qw-game-stats">
+            <div className="qw-stat-pill mode-pill detective">Answer Detective</div>
+            <div className="qw-stat-pill mistakes-pill">
+              <span className="pill-value">{questionWordSession.wrongCount}</span>
+              <span className="pill-label">mistakes</span>
+            </div>
+            <div className="qw-stat-pill remaining-pill">
+              <span className="pill-value">{activeCount}</span>
+              <span className="pill-label">left</span>
+            </div>
+          </div>
+
+          <div className="prompt-area">
+            <div className="answer-prompt-box">
+              <div className="answer-label">Someone answered:</div>
+              <div className="answer-finnish">"{currentAnswerScenario.answer}"</div>
+              <div className="answer-question">
+                <span className="answer-ask">What question were they answering?</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="multiple-choice-area">
+            <div className="option-grid answer-options">
+              {currentAnswerScenario.options.map((option, idx) => (
+                <button
+                  key={idx}
+                  className="option-btn finnish-option"
+                  onClick={() => handleOptionClick(option)}
+                  disabled={!!feedback}
+                >
+                  {option}?
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {feedback && (
+            <div className={`feedback ${feedback.isCorrect ? 'correct' : 'incorrect'}`}>
+              <div className="feedback-icon">
+                {feedback.isCorrect ? <CheckIcon size={24} /> : '✕'}
+              </div>
+              <div className="feedback-content">
+                <span className="feedback-title">
+                  {feedback.isCorrect ? 'Oikein!' : 'Väärin'}
+                </span>
+                {!feedback.isCorrect && (
+                  <>
+                    <div className="feedback-answer">
+                      <span className="user-answer">You picked: {feedback.userAnswer}</span>
+                      <span className="correct-answer">Correct: <strong>{feedback.correctAnswer}?</strong></span>
+                    </div>
+                    <div className="feedback-explanation">
+                      <span className="explanation-text">
+                        "{currentAnswerScenario.answer}" = {currentAnswerScenario.answerMeaning}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+              <button className="continue-btn" onClick={handleContinue}>
+                {feedback.isCorrect ? 'Next' : 'Try Again'}
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+    
+    // ===== RECOGNIZE & RECALL MODES (Original) =====
+    if (!currentQuestionWord) return null;
+    
+    const isRecognizeMode = subMode === 'recognize';
+    
+    return (
+      <div className="game-screen question-words-mode">
+        <div className="game-header">
+          <button className="quit-btn" onClick={onQuit}>
+            <CloseIcon size={14} /> Quit
+          </button>
+          <div className="timer">{formatTime(elapsedTime)}</div>
+          <div className="progress-stats">
+            <span className="eliminated">{eliminatedCount}</span>
+            <span className="separator">/</span>
+            <span className="total">{totalCount}</span>
+          </div>
+        </div>
+
+        <div className="qw-game-stats">
+          <div className="qw-stat-pill mode-pill" style={{ '--pill-color': categoryInfo?.color } as React.CSSProperties}>
+            {isRecognizeMode ? 'Recognition' : 'Active Recall'}
+          </div>
+          <div className="qw-stat-pill cat-pill" style={{ '--pill-color': categoryInfo?.color } as React.CSSProperties}>
+            {categoryInfo?.name || currentQuestionWord.category}
+          </div>
+          <div className="qw-stat-pill mistakes-pill">
+            <span className="pill-value">{questionWordSession.wrongCount}</span>
+            <span className="pill-label">mistakes</span>
+          </div>
+          <div className="qw-stat-pill remaining-pill">
+            <span className="pill-value">{activeCount}</span>
+            <span className="pill-label">left</span>
+          </div>
+        </div>
+
+        <div className="prompt-area">
+          <div className="question-word-prompt-box">
+            {isRecognizeMode ? (
+              <>
+                <div className="question-word-header">
+                  <span className="question-word-finnish">{currentQuestionWord.finnish}</span>
+                </div>
+                <div className="question-word-question">
+                  <span className="question-label">What does this mean?</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="question-word-header">
+                  <span className="question-word-english">{currentQuestionWord.english}</span>
+                </div>
+                <div className="question-word-question">
+                  <span className="question-label">Mikä on suomeksi? (What is it in Finnish?)</span>
+                </div>
+              </>
+            )}
+            
+            {hasWrongAnswer && (
+              <div className="question-word-hint">
+                <span className="hint-label">Usage:</span>
+                <span className="hint-text">{currentQuestionWord.usage}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {isRecognizeMode && currentQuestionWord.options ? (
+          <div className="multiple-choice-area">
+            <div className="option-grid question-options">
+              {currentQuestionWord.options.map((option, idx) => (
+                <button
+                  key={idx}
+                  className="option-btn"
+                  onClick={() => handleOptionClick(option)}
+                  disabled={!!feedback}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="input-area">
+            <form onSubmit={handleSubmit} className="input-wrapper">
+              <input
+                ref={inputRef}
+                type="text"
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                placeholder="Type the Finnish question word..."
+                disabled={!!feedback}
+                autoComplete="off"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+              />
+              <button
+                type="submit"
+                className="submit-btn"
+                disabled={!answer.trim() || !!feedback}
+              >
+                Enter
+              </button>
+            </form>
+          </div>
+        )}
+
+        {feedback && (
+          <div className={`feedback ${feedback.isCorrect ? 'correct' : 'incorrect'}`}>
+            <div className="feedback-icon">
+              {feedback.isCorrect ? <CheckIcon size={24} /> : '✕'}
+            </div>
+            <div className="feedback-content">
+              <span className="feedback-title">
+                {feedback.isCorrect ? 'Correct!' : 'Incorrect'}
+              </span>
+              {!feedback.isCorrect && (
+                <>
+                  <div className="feedback-answer">
+                    <span className="user-answer">You: {feedback.userAnswer}</span>
+                    <span className="correct-answer">Correct: {feedback.correctAnswer}</span>
+                  </div>
+                  <div className="feedback-learning">
+                    <div className="feedback-usage">
+                      <span className="usage-label">Usage:</span>
+                      <span className="usage-text">{currentQuestionWord.usage}</span>
+                    </div>
+                    <div className="feedback-example">
+                      <span className="example-finnish">{currentQuestionWord.example}</span>
+                      <span className="example-english">{currentQuestionWord.exampleTranslation}</span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
             
             <button className="continue-btn" onClick={handleContinue}>
               {feedback.isCorrect ? 'Continue' : 'Try Again'}
@@ -1236,7 +1604,10 @@ export function GameScreen({
 
   // Handle verb type arena modes
   const isVerbTypeMode = mode === 'verb-type-present' || mode === 'verb-type-negative' || 
-                         mode === 'verb-type-imperfect' || mode === 'verb-type-imperfect-negative';
+                         mode === 'verb-type-imperfect' || mode === 'verb-type-imperfect-negative' ||
+                         mode === 'verb-type-imperative' || mode === 'verb-type-imperative-negative' ||
+                         mode === 'verb-type-conditional' || mode === 'verb-type-conditional-negative' ||
+                         mode === 'verb-type-conditional-perfect' || mode === 'verb-type-conditional-perfect-negative';
   
   if (isVerbTypeMode) {
     if (!verbTypeSession) return null;
@@ -1255,6 +1626,12 @@ export function GameScreen({
       'verb-type-negative': 'Kieltomuoto',
       'verb-type-imperfect': 'Imperfekti',
       'verb-type-imperfect-negative': 'Imperfektin Kielto',
+      'verb-type-imperative': 'Imperatiivi',
+      'verb-type-imperative-negative': 'Imperatiivin Kielto',
+      'verb-type-conditional': 'Konditionaali',
+      'verb-type-conditional-negative': 'Kond. Kielto',
+      'verb-type-conditional-perfect': 'Kond. Perfekti',
+      'verb-type-conditional-perfect-negative': 'Kond. Perf. Kielto',
     };
     const tenseLabel = tenseLabels[mode] || 'Unknown';
     

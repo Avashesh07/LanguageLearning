@@ -22,12 +22,18 @@ import type {
   GenitiveRule,
   GenitiveSessionState,
   GenitiveWordState,
-  StemRule,
-  StemSessionState,
-  StemWordState,
+  PikkusanaCategory,
+  PikkusanatSessionState,
+  PikkusanaState,
   LyricsSubMode,
   LyricsSessionState,
   CurrentLyricsItem,
+  QuestionCategory,
+  QuestionSubMode,
+  QuestionWordSessionState,
+  QuestionWordState,
+  ScenarioState,
+  AnswerScenarioState,
 } from '../types';
 import { SONGS, getSongById, getSongWords, getUniqueSongLines } from '../data/songs';
 import { verbs, verbTypeInfo, persons } from '../data/verbs';
@@ -38,12 +44,15 @@ import { getSentencesByCategory, getPluralSentences, CASES, CASE_GROUPS, getCase
 import { PARTITIVE_RULES, getWordsForRules, getRuleInfo } from '../data/partitiveData';
 import { PLURAL_RULES, getWordsForPluralRules, getPluralRuleInfo } from '../data/pluralData';
 import { GENITIVE_RULES, getWordsForGenitiveRules, getGenitiveRuleInfo } from '../data/genitiveData';
-import { STEM_RULES, getWordsForStemRules, getStemRuleInfo } from '../data/stemData';
+import { PIKKUSANA_CATEGORIES, getPikkusanatForCategories, getCategoryInfo as getPikkusanaCategoryInfo } from '../data/pikkusanat';
+import { QUESTION_CATEGORIES, getWordsByCategory, getCategoryInfo, getOptionsForWord, getScenariosByCategory, getAnswerScenariosByCategory, getQuestionWordOptions } from '../data/questionWords';
 
 const STORAGE_KEY = 'finnish-verb-arena-v4';
 
+type VerbTense = 'present' | 'negative' | 'imperfect' | 'imperfectNegative' | 'imperative' | 'imperativeNegative' | 'conditional' | 'conditionalNegative' | 'conditionalPerfect' | 'conditionalPerfectNegative';
+
 type GameAction =
-  | { type: 'START_VERB_TYPE_SESSION'; tense: 'present' | 'negative' | 'imperfect' | 'imperfectNegative'; types: number[] }
+  | { type: 'START_VERB_TYPE_SESSION'; tense: VerbTense; types: number[] }
   | { type: 'START_VOCABULARY_SESSION'; mode: 'vocabulary-recall' | 'vocabulary-active-recall'; tavoites: number[]; source: 'kurssin-arvostelu' }
   | { type: 'START_SM2_SESSION'; mode: 'vocabulary-recall' | 'vocabulary-active-recall'; cycleIds: string[] }
   | { type: 'START_SM2_MEMORISE_SESSION'; cycleIds: string[] }
@@ -51,8 +60,9 @@ type GameAction =
   | { type: 'START_PARTITIVE_SESSION'; rules: PartitiveRule[]; isPlural?: boolean }
   | { type: 'START_PLURAL_SESSION'; rules: PluralRule[] }
   | { type: 'START_GENITIVE_SESSION'; rules: GenitiveRule[]; isPlural?: boolean }
-  | { type: 'START_STEM_SESSION'; rules: StemRule[] }
+  | { type: 'START_PIKKUSANAT_SESSION'; categories: PikkusanaCategory[] }
   | { type: 'START_LYRICS_SESSION'; songId: string; subMode: LyricsSubMode }
+  | { type: 'START_QUESTION_WORD_SESSION'; categories: QuestionCategory[]; subMode: QuestionSubMode }
   | { type: 'SUBMIT_ANSWER'; answer: string }
   | { type: 'NEXT_VERB' }
   | { type: 'CLEAR_FEEDBACK' }
@@ -114,8 +124,8 @@ function getInitialState(): GameState {
     currentPluralWord: undefined,
     genitiveSession: undefined,
     currentGenitiveWord: undefined,
-    stemSession: undefined,
-    currentStemWord: undefined,
+    pikkusanatSession: undefined,
+    currentPikkusana: undefined,
     lyricsSession: undefined,
     currentLyricsItem: undefined,
   };
@@ -506,9 +516,16 @@ function downloadCSV(records: TimeRecord[]): void {
 }
 
 // Verb Type Arena Helpers
-function createVerbTypeSession(tense: 'present' | 'negative' | 'imperfect' | 'imperfectNegative', types: number[]): VerbTypeSessionState {
+// Imperative only has 3 persons (sinä, me, te)
+const imperativePersons = ['sinä', 'me', 'te'] as const;
+
+function createVerbTypeSession(tense: VerbTense, types: number[]): VerbTypeSessionState {
   const verbsForTypes = verbs.filter(v => types.includes(v.type) && v.forms);
   const shuffledVerbs = [...verbsForTypes].sort(() => Math.random() - 0.5);
+  
+  // Determine which persons to use based on tense
+  const isImperativeMode = tense === 'imperative' || tense === 'imperativeNegative';
+  const personsToUse = isImperativeMode ? imperativePersons : persons;
   
   const verbStates: VerbTypeVerbState[] = shuffledVerbs.map(verb => {
     const verbForms = verb.forms?.[tense];
@@ -525,9 +542,9 @@ function createVerbTypeSession(tense: 'present' | 'negative' | 'imperfect' | 'im
       };
     }
     
-    const formStates: VerbTypeFormState[] = persons.map(person => ({
-      person,
-      correctForm: verbForms[person],
+    const formStates: VerbTypeFormState[] = personsToUse.map(person => ({
+      person: person as Person,
+      correctForm: verbForms[person as keyof typeof verbForms] as string,
       userAnswer: null,
       isCorrect: null,
     }));
@@ -544,11 +561,17 @@ function createVerbTypeSession(tense: 'present' | 'negative' | 'imperfect' | 'im
   }).filter(v => v.forms.length > 0); // Filter out verbs without forms
   
   // Map tense to game mode
-  const modeMap: Record<typeof tense, VerbTypeSessionState['mode']> = {
+  const modeMap: Record<VerbTense, VerbTypeSessionState['mode']> = {
     present: 'verb-type-present',
     negative: 'verb-type-negative',
     imperfect: 'verb-type-imperfect',
     imperfectNegative: 'verb-type-imperfect-negative',
+    imperative: 'verb-type-imperative',
+    imperativeNegative: 'verb-type-imperative-negative',
+    conditional: 'verb-type-conditional',
+    conditionalNegative: 'verb-type-conditional-negative',
+    conditionalPerfect: 'verb-type-conditional-perfect',
+    conditionalPerfectNegative: 'verb-type-conditional-perfect-negative',
   };
   
   return {
@@ -893,20 +916,21 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
 
-    case 'START_STEM_SESSION': {
-      const wordsForRules = getWordsForStemRules(action.rules);
-      const shuffledWords = [...wordsForRules].sort(() => Math.random() - 0.5);
+    case 'START_PIKKUSANAT_SESSION': {
+      const wordsForCategories = getPikkusanatForCategories(action.categories);
+      const shuffledWords = [...wordsForCategories].sort(() => Math.random() - 0.5);
       
-      const stemSession: StemSessionState = {
-        mode: 'stem',
-        selectedRules: action.rules,
+      const pikkusanatSession: PikkusanatSessionState = {
+        mode: 'pikkusanat',
+        selectedCategories: action.categories,
         words: shuffledWords.map(w => ({
-          nominative: w.nominative,
-          stem: w.stem,
-          translation: w.translation,
-          rule: w.rule,
-          hint: w.hint,
-          genitive: w.genitive,
+          finnish: w.finnish,
+          english: w.english,
+          category: w.category,
+          example: w.example,
+          exampleTranslation: w.exampleTranslation,
+          notes: w.notes,
+          alternatives: w.alternatives,
           correctCount: 0,
           wrongCount: 0,
           eliminated: false,
@@ -922,7 +946,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       
       return {
         ...state,
-        mode: 'stem',
+        mode: 'pikkusanat',
         feedback: null,
         vocabularySession: undefined,
         currentVocabularyWord: undefined,
@@ -935,14 +959,15 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         currentPluralWord: undefined,
         genitiveSession: undefined,
         currentGenitiveWord: undefined,
-        stemSession,
-        currentStemWord: firstWord ? {
-          nominative: firstWord.nominative,
-          stem: firstWord.stem,
-          translation: firstWord.translation,
-          rule: firstWord.rule,
-          hint: firstWord.hint,
-          genitive: firstWord.genitive,
+        pikkusanatSession,
+        currentPikkusana: firstWord ? {
+          finnish: firstWord.finnish,
+          english: firstWord.english,
+          category: firstWord.category,
+          example: firstWord.example,
+          exampleTranslation: firstWord.exampleTranslation,
+          notes: firstWord.notes,
+          alternatives: firstWord.alternatives,
         } : undefined,
         lyricsSession: undefined,
         currentLyricsItem: undefined,
@@ -1091,10 +1116,180 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
 
+    case 'START_QUESTION_WORD_SESSION': {
+      // Handle scenario mode
+      if (action.subMode === 'scenario') {
+        const scenariosForCategories = getScenariosByCategory(action.categories);
+        const shuffledScenarios = [...scenariosForCategories].sort(() => Math.random() - 0.5);
+        
+        if (shuffledScenarios.length === 0) return state;
+        
+        const questionWordSession: QuestionWordSessionState = {
+          mode: 'question-words',
+          subMode: action.subMode,
+          selectedCategories: action.categories,
+          words: [], // Not used in scenario mode
+          currentWordIndex: 0,
+          scenarios: shuffledScenarios.map(s => ({
+            id: s.id,
+            emoji: s.emoji,
+            situation: s.situation,
+            context: s.context,
+            correctWord: s.correctWord,
+            category: s.category,
+            hint: s.hint,
+            correctCount: 0,
+            wrongCount: 0,
+            eliminated: false,
+          })),
+          currentScenarioIndex: 0,
+          startTime: Date.now(),
+          endTime: null,
+          wrongCount: 0,
+          isComplete: false,
+        };
+        
+        const firstScenario = shuffledScenarios[0];
+        const options = getQuestionWordOptions(firstScenario.correctWord, firstScenario.category, 4);
+        
+        return {
+          ...state,
+          mode: 'question-words',
+          feedback: null,
+          questionWordSession,
+          currentScenario: {
+            id: firstScenario.id,
+            emoji: firstScenario.emoji,
+            situation: firstScenario.situation,
+            context: firstScenario.context,
+            correctWord: firstScenario.correctWord,
+            category: firstScenario.category,
+            hint: firstScenario.hint,
+            options,
+          },
+          currentQuestionWord: undefined,
+          currentAnswerScenario: undefined,
+        };
+      }
+      
+      // Handle answer-match mode
+      if (action.subMode === 'answer-match') {
+        const answerScenariosForCategories = getAnswerScenariosByCategory(action.categories);
+        const shuffledAnswers = [...answerScenariosForCategories].sort(() => Math.random() - 0.5);
+        
+        if (shuffledAnswers.length === 0) return state;
+        
+        const questionWordSession: QuestionWordSessionState = {
+          mode: 'question-words',
+          subMode: action.subMode,
+          selectedCategories: action.categories,
+          words: [], // Not used in answer-match mode
+          currentWordIndex: 0,
+          answerScenarios: shuffledAnswers.map(s => ({
+            id: s.id,
+            emoji: s.emoji,
+            answer: s.answer,
+            answerMeaning: s.answerMeaning,
+            correctQuestion: s.correctQuestion,
+            category: s.category,
+            alternatives: s.alternatives,
+            correctCount: 0,
+            wrongCount: 0,
+            eliminated: false,
+          })),
+          currentAnswerIndex: 0,
+          startTime: Date.now(),
+          endTime: null,
+          wrongCount: 0,
+          isComplete: false,
+        };
+        
+        const firstAnswer = shuffledAnswers[0];
+        const options = getQuestionWordOptions(firstAnswer.correctQuestion, firstAnswer.category, 4);
+        
+        return {
+          ...state,
+          mode: 'question-words',
+          feedback: null,
+          questionWordSession,
+          currentAnswerScenario: {
+            id: firstAnswer.id,
+            emoji: firstAnswer.emoji,
+            answer: firstAnswer.answer,
+            answerMeaning: firstAnswer.answerMeaning,
+            correctQuestion: firstAnswer.correctQuestion,
+            category: firstAnswer.category,
+            alternatives: firstAnswer.alternatives,
+            options,
+          },
+          currentQuestionWord: undefined,
+          currentScenario: undefined,
+        };
+      }
+      
+      // Handle recognize and recall modes (original logic)
+      const wordsForCategories = getWordsByCategory(action.categories);
+      const shuffledWords = [...wordsForCategories].sort(() => Math.random() - 0.5);
+      
+      if (shuffledWords.length === 0) return state;
+      
+      const questionWordSession: QuestionWordSessionState = {
+        mode: 'question-words',
+        subMode: action.subMode,
+        selectedCategories: action.categories,
+        words: shuffledWords.map(w => ({
+          finnish: w.finnish,
+          english: w.english,
+          category: w.category,
+          usage: w.usage,
+          example: w.example,
+          exampleTranslation: w.exampleTranslation,
+          correctCount: 0,
+          wrongCount: 0,
+          eliminated: false,
+        })),
+        currentWordIndex: 0,
+        startTime: Date.now(),
+        endTime: null,
+        wrongCount: 0,
+        isComplete: false,
+      };
+      
+      const firstWord = shuffledWords[0];
+      
+      // Generate options for multiple choice mode
+      let options: string[] | undefined;
+      if (action.subMode === 'recognize') {
+        options = getOptionsForWord(firstWord, shuffledWords, 4);
+        questionWordSession.currentOptions = options;
+      }
+      
+      return {
+        ...state,
+        mode: 'question-words',
+        feedback: null,
+        questionWordSession,
+        currentQuestionWord: {
+          finnish: firstWord.finnish,
+          english: firstWord.english,
+          category: firstWord.category,
+          usage: firstWord.usage,
+          example: firstWord.example,
+          exampleTranslation: firstWord.exampleTranslation,
+          options,
+        },
+        currentScenario: undefined,
+        currentAnswerScenario: undefined,
+      };
+    }
+
     case 'SUBMIT_ANSWER': {
       // Handle verb type arena modes
       if (state.mode === 'verb-type-present' || state.mode === 'verb-type-negative' || 
-          state.mode === 'verb-type-imperfect' || state.mode === 'verb-type-imperfect-negative') {
+          state.mode === 'verb-type-imperfect' || state.mode === 'verb-type-imperfect-negative' ||
+          state.mode === 'verb-type-imperative' || state.mode === 'verb-type-imperative-negative' ||
+          state.mode === 'verb-type-conditional' || state.mode === 'verb-type-conditional-negative' ||
+          state.mode === 'verb-type-conditional-perfect' || state.mode === 'verb-type-conditional-perfect-negative') {
         if (!state.verbTypeSession) return state;
         
         const session = state.verbTypeSession;
@@ -1728,55 +1923,216 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
       
-      // Handle stem mode
-      if (state.mode === 'stem') {
-        if (!state.stemSession || !state.currentStemWord) return state;
+      // Handle pikkusanat mode
+      if (state.mode === 'pikkusanat') {
+        if (!state.pikkusanatSession || !state.currentPikkusana) return state;
         
-        const stemSession = state.stemSession;
-        const currentWordState = stemSession.words[stemSession.currentWordIndex];
+        const pikkusanatSession = state.pikkusanatSession;
+        const currentWordState = pikkusanatSession.words[pikkusanatSession.currentWordIndex];
         
         const normalizedAnswer = action.answer.trim().toLowerCase();
-        const correctAnswer = currentWordState.stem;
+        const correctAnswer = currentWordState.finnish;
+        // Check for exact match or alternative translations
         const isCorrect = normalizedAnswer === correctAnswer.toLowerCase();
         
         const shouldEliminate = isCorrect;
         
-        const newWordState: StemWordState = {
+        const newWordState: PikkusanaState = {
           ...currentWordState,
           correctCount: isCorrect ? currentWordState.correctCount + 1 : currentWordState.correctCount,
           wrongCount: currentWordState.wrongCount + (isCorrect ? 0 : 1),
           eliminated: shouldEliminate,
         };
         
-        const newWords = [...stemSession.words];
-        newWords[stemSession.currentWordIndex] = newWordState;
+        const newWords = [...pikkusanatSession.words];
+        newWords[pikkusanatSession.currentWordIndex] = newWordState;
         
-        const newWrongCount = stemSession.wrongCount + (isCorrect ? 0 : 1);
+        const newWrongCount = pikkusanatSession.wrongCount + (isCorrect ? 0 : 1);
         const activeCount = newWords.filter(w => !w.eliminated).length;
         const isComplete = activeCount === 0;
         
-        const newStemSession: StemSessionState = {
-          ...stemSession,
+        const newPikkusanatSession: PikkusanatSessionState = {
+          ...pikkusanatSession,
           words: newWords,
           wrongCount: newWrongCount,
           isComplete,
           endTime: isComplete ? Date.now() : null,
         };
         
-        // Build feedback with rule info
-        const ruleInfo = getStemRuleInfo(currentWordState.rule);
+        // Build feedback with category info
+        const categoryInfo = getPikkusanaCategoryInfo(currentWordState.category);
         
         const feedback: FeedbackData = {
           isCorrect,
           userAnswer: action.answer,
           correctAnswer,
-          rule: !isCorrect ? ruleInfo?.formation : undefined,
-          verbTypeInfo: !isCorrect ? ruleInfo?.name : undefined,
+          rule: !isCorrect && currentWordState.example ? `Example: ${currentWordState.example}` : undefined,
+          verbTypeInfo: !isCorrect ? categoryInfo?.name : undefined,
         };
         
         return {
           ...state,
-          stemSession: newStemSession,
+          pikkusanatSession: newPikkusanatSession,
+          feedback,
+        };
+      }
+      
+      // Handle question words mode
+      if (state.mode === 'question-words') {
+        const qwSession = state.questionWordSession;
+        if (!qwSession) return state;
+        
+        const normalizedAnswer = action.answer.trim().toLowerCase();
+        
+        // Handle scenario mode
+        if (qwSession.subMode === 'scenario' && state.currentScenario && qwSession.scenarios) {
+          const currentScenarioState = qwSession.scenarios[qwSession.currentScenarioIndex || 0];
+          const expectedAnswer = currentScenarioState.correctWord;
+          const isCorrect = normalizedAnswer === expectedAnswer.toLowerCase();
+          
+          const newScenarioState: ScenarioState = {
+            ...currentScenarioState,
+            correctCount: isCorrect ? currentScenarioState.correctCount + 1 : currentScenarioState.correctCount,
+            wrongCount: currentScenarioState.wrongCount + (isCorrect ? 0 : 1),
+            eliminated: isCorrect,
+          };
+          
+          const newScenarios = [...qwSession.scenarios];
+          newScenarios[qwSession.currentScenarioIndex || 0] = newScenarioState;
+          
+          const newWrongCount = qwSession.wrongCount + (isCorrect ? 0 : 1);
+          const activeCount = newScenarios.filter(s => !s.eliminated).length;
+          const isComplete = activeCount === 0;
+          
+          const categoryInfo = getCategoryInfo(currentScenarioState.category);
+          
+          const feedback: FeedbackData = {
+            isCorrect,
+            userAnswer: action.answer,
+            correctAnswer: expectedAnswer,
+            rule: !isCorrect ? currentScenarioState.hint : undefined,
+            verbTypeInfo: !isCorrect ? categoryInfo?.name : undefined,
+            exampleSentence: !isCorrect ? currentScenarioState.context : undefined,
+          };
+          
+          return {
+            ...state,
+            questionWordSession: {
+              ...qwSession,
+              scenarios: newScenarios,
+              wrongCount: newWrongCount,
+              isComplete,
+              endTime: isComplete ? Date.now() : null,
+            },
+            feedback,
+          };
+        }
+        
+        // Handle answer-match mode
+        if (qwSession.subMode === 'answer-match' && state.currentAnswerScenario && qwSession.answerScenarios) {
+          const currentAnswerState = qwSession.answerScenarios[qwSession.currentAnswerIndex || 0];
+          const expectedAnswer = currentAnswerState.correctQuestion;
+          const alternatives = currentAnswerState.alternatives || [];
+          const isCorrect = normalizedAnswer === expectedAnswer.toLowerCase() || 
+                           alternatives.some(alt => normalizedAnswer === alt.toLowerCase());
+          
+          const newAnswerState: AnswerScenarioState = {
+            ...currentAnswerState,
+            correctCount: isCorrect ? currentAnswerState.correctCount + 1 : currentAnswerState.correctCount,
+            wrongCount: currentAnswerState.wrongCount + (isCorrect ? 0 : 1),
+            eliminated: isCorrect,
+          };
+          
+          const newAnswers = [...qwSession.answerScenarios];
+          newAnswers[qwSession.currentAnswerIndex || 0] = newAnswerState;
+          
+          const newWrongCount = qwSession.wrongCount + (isCorrect ? 0 : 1);
+          const activeCount = newAnswers.filter(a => !a.eliminated).length;
+          const isComplete = activeCount === 0;
+          
+          const categoryInfo = getCategoryInfo(currentAnswerState.category);
+          
+          const feedback: FeedbackData = {
+            isCorrect,
+            userAnswer: action.answer,
+            correctAnswer: expectedAnswer,
+            rule: !isCorrect ? `This answer typically follows "${expectedAnswer}?"` : undefined,
+            verbTypeInfo: !isCorrect ? categoryInfo?.name : undefined,
+            exampleSentence: !isCorrect ? currentAnswerState.answer : undefined,
+            exampleTranslation: !isCorrect ? currentAnswerState.answerMeaning : undefined,
+          };
+          
+          return {
+            ...state,
+            questionWordSession: {
+              ...qwSession,
+              answerScenarios: newAnswers,
+              wrongCount: newWrongCount,
+              isComplete,
+              endTime: isComplete ? Date.now() : null,
+            },
+            feedback,
+          };
+        }
+        
+        // Handle recognize and recall modes (original logic)
+        if (!state.currentQuestionWord) return state;
+        
+        const currentWordState = qwSession.words[qwSession.currentWordIndex];
+        
+        let isCorrect = false;
+        let expectedAnswer = '';
+        
+        if (qwSession.subMode === 'recognize') {
+          // Multiple choice - user picks English meaning
+          expectedAnswer = currentWordState.english.split('/')[0].trim();
+          isCorrect = normalizedAnswer === expectedAnswer.toLowerCase();
+        } else {
+          // Recall - user types Finnish question word
+          expectedAnswer = currentWordState.finnish;
+          isCorrect = normalizedAnswer === expectedAnswer.toLowerCase();
+        }
+        
+        const shouldEliminate = isCorrect;
+        
+        const newWordState: QuestionWordState = {
+          ...currentWordState,
+          correctCount: isCorrect ? currentWordState.correctCount + 1 : currentWordState.correctCount,
+          wrongCount: currentWordState.wrongCount + (isCorrect ? 0 : 1),
+          eliminated: shouldEliminate,
+        };
+        
+        const newWords = [...qwSession.words];
+        newWords[qwSession.currentWordIndex] = newWordState;
+        
+        const newWrongCount = qwSession.wrongCount + (isCorrect ? 0 : 1);
+        const activeCount = newWords.filter(w => !w.eliminated).length;
+        const isComplete = activeCount === 0;
+        
+        const newQWSession: QuestionWordSessionState = {
+          ...qwSession,
+          words: newWords,
+          wrongCount: newWrongCount,
+          isComplete,
+          endTime: isComplete ? Date.now() : null,
+        };
+        
+        // Build feedback with usage info
+        const categoryInfo = getCategoryInfo(currentWordState.category);
+        
+        const feedback: FeedbackData = {
+          isCorrect,
+          userAnswer: action.answer,
+          correctAnswer: qwSession.subMode === 'recognize' ? expectedAnswer : currentWordState.finnish,
+          rule: !isCorrect ? currentWordState.usage : undefined,
+          verbTypeInfo: !isCorrect ? categoryInfo?.name : undefined,
+          exampleSentence: !isCorrect ? currentWordState.example : undefined,
+          exampleTranslation: !isCorrect ? currentWordState.exampleTranslation : undefined,
+        };
+        
+        return {
+          ...state,
+          questionWordSession: newQWSession,
           feedback,
         };
       }
@@ -1885,7 +2241,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'NEXT_VERB': {
       // Handle verb type arena modes
       if (state.mode === 'verb-type-present' || state.mode === 'verb-type-negative' || 
-          state.mode === 'verb-type-imperfect' || state.mode === 'verb-type-imperfect-negative') {
+          state.mode === 'verb-type-imperfect' || state.mode === 'verb-type-imperfect-negative' ||
+          state.mode === 'verb-type-imperative' || state.mode === 'verb-type-imperative-negative' ||
+          state.mode === 'verb-type-conditional' || state.mode === 'verb-type-conditional-negative' ||
+          state.mode === 'verb-type-conditional-perfect' || state.mode === 'verb-type-conditional-perfect-negative') {
         if (!state.verbTypeSession) return state;
         
         const session = state.verbTypeSession;
@@ -2180,11 +2539,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
       
-      // Handle stem mode
-      if (state.mode === 'stem') {
-        if (!state.stemSession) return state;
+      // Handle pikkusanat mode
+      if (state.mode === 'pikkusanat') {
+        if (!state.pikkusanatSession) return state;
         
-        const session = state.stemSession;
+        const session = state.pikkusanatSession;
         const activeWords = session.words.filter(w => !w.eliminated);
         
         if (activeWords.length === 0 || session.isComplete) {
@@ -2212,17 +2571,160 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         
         return {
           ...state,
-          stemSession: {
+          pikkusanatSession: {
             ...session,
             currentWordIndex: nextIndex,
           },
-          currentStemWord: {
-            nominative: nextWord.nominative,
-            stem: nextWord.stem,
-            translation: nextWord.translation,
-            rule: nextWord.rule,
-            hint: nextWord.hint,
-            genitive: nextWord.genitive,
+          currentPikkusana: {
+            finnish: nextWord.finnish,
+            english: nextWord.english,
+            category: nextWord.category,
+            example: nextWord.example,
+            exampleTranslation: nextWord.exampleTranslation,
+            notes: nextWord.notes,
+            alternatives: nextWord.alternatives,
+          },
+          feedback: null,
+        };
+      }
+      
+      // Handle question words mode
+      if (state.mode === 'question-words') {
+        if (!state.questionWordSession) return state;
+        
+        const session = state.questionWordSession;
+        
+        // Handle scenario mode
+        if (session.subMode === 'scenario' && session.scenarios) {
+          const activeScenarios = session.scenarios.filter(s => !s.eliminated);
+          
+          if (activeScenarios.length === 0 || session.isComplete) {
+            return { ...state, feedback: null };
+          }
+          
+          let nextIndex = (session.currentScenarioIndex || 0) + 1;
+          while (nextIndex < session.scenarios.length && session.scenarios[nextIndex].eliminated) {
+            nextIndex++;
+          }
+          if (nextIndex >= session.scenarios.length) {
+            nextIndex = 0;
+            while (nextIndex < session.scenarios.length && session.scenarios[nextIndex].eliminated) {
+              nextIndex++;
+            }
+          }
+          
+          const nextScenario = session.scenarios[nextIndex];
+          const options = getQuestionWordOptions(nextScenario.correctWord, nextScenario.category, 4);
+          
+          return {
+            ...state,
+            questionWordSession: { ...session, currentScenarioIndex: nextIndex },
+            currentScenario: {
+              id: nextScenario.id,
+              emoji: nextScenario.emoji,
+              situation: nextScenario.situation,
+              context: nextScenario.context,
+              correctWord: nextScenario.correctWord,
+              category: nextScenario.category,
+              hint: nextScenario.hint,
+              options,
+            },
+            feedback: null,
+          };
+        }
+        
+        // Handle answer-match mode
+        if (session.subMode === 'answer-match' && session.answerScenarios) {
+          const activeAnswers = session.answerScenarios.filter(a => !a.eliminated);
+          
+          if (activeAnswers.length === 0 || session.isComplete) {
+            return { ...state, feedback: null };
+          }
+          
+          let nextIndex = (session.currentAnswerIndex || 0) + 1;
+          while (nextIndex < session.answerScenarios.length && session.answerScenarios[nextIndex].eliminated) {
+            nextIndex++;
+          }
+          if (nextIndex >= session.answerScenarios.length) {
+            nextIndex = 0;
+            while (nextIndex < session.answerScenarios.length && session.answerScenarios[nextIndex].eliminated) {
+              nextIndex++;
+            }
+          }
+          
+          const nextAnswer = session.answerScenarios[nextIndex];
+          const options = getQuestionWordOptions(nextAnswer.correctQuestion, nextAnswer.category, 4);
+          
+          return {
+            ...state,
+            questionWordSession: { ...session, currentAnswerIndex: nextIndex },
+            currentAnswerScenario: {
+              id: nextAnswer.id,
+              emoji: nextAnswer.emoji,
+              answer: nextAnswer.answer,
+              answerMeaning: nextAnswer.answerMeaning,
+              correctQuestion: nextAnswer.correctQuestion,
+              category: nextAnswer.category,
+              alternatives: nextAnswer.alternatives,
+              options,
+            },
+            feedback: null,
+          };
+        }
+        
+        // Handle recognize and recall modes (original logic)
+        const activeWords = session.words.filter(w => !w.eliminated);
+        
+        if (activeWords.length === 0 || session.isComplete) {
+          return {
+            ...state,
+            feedback: null,
+          };
+        }
+        
+        // Find next active word
+        let nextIndex = session.currentWordIndex + 1;
+        while (nextIndex < session.words.length && session.words[nextIndex].eliminated) {
+          nextIndex++;
+        }
+        
+        // Wrap around if needed
+        if (nextIndex >= session.words.length) {
+          nextIndex = 0;
+          while (nextIndex < session.words.length && session.words[nextIndex].eliminated) {
+            nextIndex++;
+          }
+        }
+        
+        const nextWord = session.words[nextIndex];
+        
+        // Generate new options for recognize mode
+        let options: string[] | undefined;
+        if (session.subMode === 'recognize') {
+          const otherWords = session.words.filter(w => w.finnish !== nextWord.finnish && !w.eliminated);
+          const wrongOptions = otherWords
+            .sort(() => Math.random() - 0.5)
+            .slice(0, 3)
+            .map(w => w.english.split('/')[0].trim());
+          const correctAnswer = nextWord.english.split('/')[0].trim();
+          options = [correctAnswer, ...wrongOptions].sort(() => Math.random() - 0.5);
+        }
+        
+        return {
+          ...state,
+          questionWordSession: {
+            ...session,
+            currentWordIndex: nextIndex,
+            currentOptions: options,
+          },
+          currentQuestionWord: {
+            finnish: nextWord.finnish,
+            english: nextWord.english,
+            category: nextWord.category,
+            usage: nextWord.usage,
+            example: nextWord.example,
+            exampleTranslation: nextWord.exampleTranslation,
+            options,
           },
           feedback: null,
         };
@@ -2367,6 +2869,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         currentStemWord: undefined,
         lyricsSession: undefined,
         currentLyricsItem: undefined,
+        questionWordSession: undefined,
+        currentQuestionWord: undefined,
+        currentScenario: undefined,
+        currentAnswerScenario: undefined,
       };
     }
 
@@ -2422,7 +2928,7 @@ export function useGameState() {
   }, [state.player]);
 
   // Verb Type Arena functions
-  const startVerbTypeSession = useCallback((tense: 'present' | 'negative' | 'imperfect' | 'imperfectNegative', types: number[]) => {
+  const startVerbTypeSession = useCallback((tense: VerbTense, types: number[]) => {
     dispatch({ type: 'START_VERB_TYPE_SESSION', tense, types });
   }, []);
   
@@ -2557,15 +3063,15 @@ export function useGameState() {
     return getWordsForGenitiveRules(rules).length;
   }, []);
   
-  // Stem session actions
-  const [selectedStemRules, setSelectedStemRules] = useState<StemRule[]>(['no-change']);
+  // Pikkusanat session actions
+  const [selectedPikkusanaCategories, setSelectedPikkusanaCategories] = useState<PikkusanaCategory[]>(['conjunctions']);
   
-  const startStemSession = useCallback((rules: StemRule[]) => {
-    dispatch({ type: 'START_STEM_SESSION', rules });
+  const startPikkusanatSession = useCallback((categories: PikkusanaCategory[]) => {
+    dispatch({ type: 'START_PIKKUSANAT_SESSION', categories });
   }, []);
   
-  const getStemWordCount = useCallback((rules: StemRule[]) => {
-    return getWordsForStemRules(rules).length;
+  const getPikkusanaWordCount = useCallback((categories: PikkusanaCategory[]) => {
+    return getPikkusanatForCategories(categories).length;
   }, []);
   
   // Lyrics Learning related
@@ -2586,6 +3092,18 @@ export function useGameState() {
       lineCount: getUniqueSongLines(song).length,
       difficulty: song.difficulty,
     };
+  }, []);
+  
+  // Question Words related
+  const [selectedQuestionCategories, setSelectedQuestionCategories] = useState<QuestionCategory[]>([]);
+  const [selectedQuestionSubMode, setSelectedQuestionSubMode] = useState<QuestionSubMode>('recognize');
+  
+  const startQuestionWordSession = useCallback((categories: QuestionCategory[], subMode: QuestionSubMode) => {
+    dispatch({ type: 'START_QUESTION_WORD_SESSION', categories, subMode });
+  }, []);
+  
+  const getQuestionWordCount = useCallback((categories: QuestionCategory[]) => {
+    return getWordsByCategory(categories).length;
   }, []);
 
   return {
@@ -2642,12 +3160,12 @@ export function useGameState() {
     startGenitiveSession,
     getGenitiveWordCount,
     genitiveRules: GENITIVE_RULES,
-    // Stem exports
-    selectedStemRules,
-    setSelectedStemRules,
-    startStemSession,
-    getStemWordCount,
-    stemRules: STEM_RULES,
+    // Pikkusanat exports
+    selectedPikkusanaCategories,
+    setSelectedPikkusanaCategories,
+    startPikkusanatSession,
+    getPikkusanaWordCount,
+    pikkusanaCategories: PIKKUSANA_CATEGORIES,
     // Lyrics Learning exports
     selectedSongId,
     setSelectedSongId,
@@ -2656,5 +3174,13 @@ export function useGameState() {
     startLyricsSession,
     getSongInfo,
     allSongs: SONGS,
+    // Question Words exports
+    selectedQuestionCategories,
+    setSelectedQuestionCategories,
+    selectedQuestionSubMode,
+    setSelectedQuestionSubMode,
+    startQuestionWordSession,
+    getQuestionWordCount,
+    questionCategories: QUESTION_CATEGORIES,
   };
 }

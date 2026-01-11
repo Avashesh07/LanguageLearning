@@ -1,16 +1,28 @@
 // Finnish Verb Arena - Types
 
-export type GameMode = 'menu' | 'vocabulary-recall' | 'vocabulary-active-recall' | 'vocabulary-memorise' | 'cases-fill-blank' | 'cases-fill-blank-plural' | 'verb-type-present' | 'verb-type-negative' | 'verb-type-imperfect' | 'verb-type-imperfect-negative' | 'partitive' | 'partitive-plural' | 'plural' | 'genitive' | 'genitive-plural' | 'stem' | 'lyrics';
+export type GameMode = 'menu' | 'vocabulary-recall' | 'vocabulary-active-recall' | 'vocabulary-memorise' | 'cases-fill-blank' | 'cases-fill-blank-plural' | 'verb-type-present' | 'verb-type-negative' | 'verb-type-imperfect' | 'verb-type-imperfect-negative' | 'verb-type-imperative' | 'verb-type-imperative-negative' | 'verb-type-conditional' | 'verb-type-conditional-negative' | 'verb-type-conditional-perfect' | 'verb-type-conditional-perfect-negative' | 'partitive' | 'partitive-plural' | 'plural' | 'genitive' | 'genitive-plural' | 'pikkusanat' | 'lyrics' | 'question-words';
 
 export type Person = 'minä' | 'sinä' | 'hän' | 'me' | 'te' | 'he';
 
 export type Polarity = 'positive' | 'negative';
+
+// Imperative only has sinä, me, te forms (no minä, hän, he - they use other constructions)
+export type ImperativePerson = 'sinä' | 'me' | 'te';
 
 export interface VerbForms {
   present: Record<Person, string>;
   negative: Record<Person, string>;
   imperfect?: Record<Person, string>; // Past tense forms
   imperfectNegative?: Record<Person, string>; // Negative past tense forms
+  // Imperative (käskymuoto) - commands
+  imperative?: Record<ImperativePerson, string>; // puhu!, puhukaamme!, puhukaa!
+  imperativeNegative?: Record<ImperativePerson, string>; // älä puhu!, älkäämme puhuko!, älkää puhuko!
+  // Conditional (konditionaali) - "would"
+  conditional?: Record<Person, string>; // puhuisin, puhuisit, puhuisi...
+  conditionalNegative?: Record<Person, string>; // en puhuisi, et puhuisi...
+  // Conditional Perfect (konditionaalin perfekti) - "would have"
+  conditionalPerfect?: Record<Person, string>; // olisin puhunut, olisit puhunut...
+  conditionalPerfectNegative?: Record<Person, string>; // en olisi puhunut, et olisi puhunut...
 }
 
 export interface Verb {
@@ -94,12 +106,17 @@ export interface GameState {
   // Genitive specific
   genitiveSession?: GenitiveSessionState;
   currentGenitiveWord?: CurrentGenitiveWord;
-  // Stem (Vartalo) specific
-  stemSession?: StemSessionState;
-  currentStemWord?: CurrentStemWord;
+  // Pikkusanat (Small Words) specific
+  pikkusanatSession?: PikkusanatSessionState;
+  currentPikkusana?: CurrentPikkusana;
   // Lyrics Learning specific
   lyricsSession?: LyricsSessionState;
   currentLyricsItem?: CurrentLyricsItem;
+  // Question Words specific
+  questionWordSession?: QuestionWordSessionState;
+  currentQuestionWord?: CurrentQuestionWord;
+  currentScenario?: CurrentScenario;
+  currentAnswerScenario?: CurrentAnswerScenario;
 }
 
 export interface FeedbackData {
@@ -234,7 +251,7 @@ export interface VerbTypeVerbState {
 }
 
 export interface VerbTypeSessionState {
-  mode: 'verb-type-present' | 'verb-type-negative' | 'verb-type-imperfect' | 'verb-type-imperfect-negative';
+  mode: 'verb-type-present' | 'verb-type-negative' | 'verb-type-imperfect' | 'verb-type-imperfect-negative' | 'verb-type-imperative' | 'verb-type-imperative-negative' | 'verb-type-conditional' | 'verb-type-conditional-negative' | 'verb-type-conditional-perfect' | 'verb-type-conditional-perfect-negative';
   selectedTypes: number[];
   verbs: VerbTypeVerbState[];
   currentVerbIndex: number;
@@ -374,35 +391,47 @@ export interface CurrentGenitiveWord {
   hint?: string;
 }
 
-// Stem (Vartalo) Types
-export type StemRule = 
-  | 'no-change'
-  | 'consonant-gradation'
-  | 'old-i-to-e'
-  | 'e-doubling'
-  | 'nen-to-se'
-  | 's-to-kse'
-  | 's-to-de'
-  | 'n-to-me'
-  | 'consonant-stem'
-  | 'special';
+// Pikkusanat (Small Words) Types
+// Categories of small words used to fill sentences
+export type PikkusanaCategory = 
+  | 'conjunctions'       // ja, mutta, tai, koska, kun, jos, että
+  | 'adverbs'            // nyt, sitten, jo, vielä, usein, aina
+  | 'particles'          // no, niin, kai, kyllä, ehkä, vain
+  | 'prepositions'       // ennen, jälkeen, ilman, kanssa
+  | 'pronouns'           // se, tämä, tuo, joku, mikä, kuka
+  | 'question-particles' // -ko/-kö, vai, entä
+  | 'intensifiers'       // hyvin, todella, erittäin, melko, aika
+  | 'negation'           // ei, en, et, emme, ette, eivät
+  | 'time-expressions'   // eilen, tänään, huomenna, pian
+  | 'fillers';           // siis, tuota, niinku, tavallaan
 
-export interface StemWordState {
-  nominative: string;
-  stem: string;
-  translation: string;
-  rule: StemRule;
-  hint?: string;
-  genitive?: string;
+export interface Pikkusana {
+  finnish: string;
+  english: string;
+  category: PikkusanaCategory;
+  example?: string;        // Example sentence in Finnish
+  exampleTranslation?: string; // Example sentence translation
+  notes?: string;          // Usage notes
+  alternatives?: string[]; // Alternative translations
+}
+
+export interface PikkusanaState {
+  finnish: string;
+  english: string;
+  category: PikkusanaCategory;
+  example?: string;
+  exampleTranslation?: string;
+  notes?: string;
+  alternatives?: string[];
   correctCount: number;
   wrongCount: number;
   eliminated: boolean;
 }
 
-export interface StemSessionState {
-  mode: 'stem';
-  selectedRules: StemRule[];
-  words: StemWordState[];
+export interface PikkusanatSessionState {
+  mode: 'pikkusanat';
+  selectedCategories: PikkusanaCategory[];
+  words: PikkusanaState[];
   currentWordIndex: number;
   startTime: number | null;
   endTime: number | null;
@@ -410,13 +439,14 @@ export interface StemSessionState {
   isComplete: boolean;
 }
 
-export interface CurrentStemWord {
-  nominative: string;
-  stem: string;
-  translation: string;
-  rule: StemRule;
-  hint?: string;
-  genitive?: string;
+export interface CurrentPikkusana {
+  finnish: string;
+  english: string;
+  category: PikkusanaCategory;
+  example?: string;
+  exampleTranslation?: string;
+  notes?: string;
+  alternatives?: string[];
 }
 
 // Lyrics Learning Types
@@ -494,4 +524,111 @@ export interface SongProgress {
   wordsLearned: number;
   linesLearned: number;
   lastPlayed: string;
+}
+
+// Question Words (Kysymyssanat) Types
+export type QuestionCategory = 
+  | 'what'        // mitä, mikä
+  | 'who'         // kuka, kenellä, etc.
+  | 'where'       // missä, mistä, mihin, minne
+  | 'when'        // milloin, koska, mihin aikaan
+  | 'how'         // miten, kuinka, millainen
+  | 'why'         // miksi, minkä takia
+  | 'which'       // mikä, kumpi
+  | 'whose'       // kenen
+  | 'how-much';   // paljonko, montako
+
+export type QuestionSubMode = 
+  | 'recognize'      // See Finnish, pick English meaning (multiple choice)
+  | 'recall'         // See English, type Finnish question word
+  | 'scenario'       // See a situation, pick the right question word (intuitive learning)
+  | 'answer-match';  // See an answer, guess what question was asked
+
+export interface QuestionWordState {
+  finnish: string;
+  english: string;
+  category: QuestionCategory;
+  usage: string;
+  example: string;
+  exampleTranslation: string;
+  correctCount: number;
+  wrongCount: number;
+  eliminated: boolean;
+}
+
+export interface ScenarioState {
+  id: string;
+  emoji: string;
+  situation: string;
+  context: string;
+  correctWord: string;
+  category: QuestionCategory;
+  hint?: string;
+  correctCount: number;
+  wrongCount: number;
+  eliminated: boolean;
+}
+
+export interface AnswerScenarioState {
+  id: string;
+  emoji: string;
+  answer: string;
+  answerMeaning: string;
+  correctQuestion: string;
+  category: QuestionCategory;
+  alternatives?: string[];
+  correctCount: number;
+  wrongCount: number;
+  eliminated: boolean;
+}
+
+export interface QuestionWordSessionState {
+  mode: 'question-words';
+  subMode: QuestionSubMode;
+  selectedCategories: QuestionCategory[];
+  words: QuestionWordState[];
+  currentWordIndex: number;
+  currentOptions?: string[];  // For multiple choice mode
+  // Scenario mode specific
+  scenarios?: ScenarioState[];
+  currentScenarioIndex?: number;
+  // Answer-match mode specific
+  answerScenarios?: AnswerScenarioState[];
+  currentAnswerIndex?: number;
+  startTime: number | null;
+  endTime: number | null;
+  wrongCount: number;
+  isComplete: boolean;
+}
+
+export interface CurrentQuestionWord {
+  finnish: string;
+  english: string;
+  category: QuestionCategory;
+  usage: string;
+  example: string;
+  exampleTranslation: string;
+  options?: string[];  // For multiple choice
+}
+
+export interface CurrentScenario {
+  id: string;
+  emoji: string;
+  situation: string;
+  context: string;
+  correctWord: string;
+  category: QuestionCategory;
+  hint?: string;
+  options: string[];  // Question word options
+}
+
+export interface CurrentAnswerScenario {
+  id: string;
+  emoji: string;
+  answer: string;
+  answerMeaning: string;
+  correctQuestion: string;
+  category: QuestionCategory;
+  alternatives?: string[];
+  options: string[];  // Question word options
 }
